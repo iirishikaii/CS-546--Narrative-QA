@@ -20,6 +20,8 @@ def json_pretty_dump(obj, fh):
 def index(l, i):
     return index(l[i[0]], i[1:]) if len(i) > 1 else l[i[0]]
 
+def index_nqa(l, i):
+    return l[i[0]][0] #summary has only one paragraph
 
 def fill(l, shape, dtype=None):
     out = np.zeros(shape, dtype=dtype)
