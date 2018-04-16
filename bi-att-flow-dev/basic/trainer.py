@@ -1,6 +1,6 @@
 import tensorflow as tf
 
-from basic.model import Model
+from basic.model_nqa import Model
 from my.tensorflow import average_gradients
 
 

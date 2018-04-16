@@ -8,7 +8,7 @@ from collections import defaultdict
 import numpy as np
 
 from my.tensorflow import grouper
-from my.utils import index
+from my.utils import index_nqa
 
 
 class Data(object):
@@ -91,21 +91,21 @@ class DataSet(object):
                 grouped = lambda: random.sample(sorted_grouped(), num_batches_per_epoch)
             else:
                 random_grouped = lambda: list(grouper(random_idxs, batch_size))
-                grouped = random_grouped
+                grouped = random_grouped #creates list of tuples, each tuple has random ids, all tuples equal size, smaller tuples filled with None
         else:
             raw_grouped = lambda: list(grouper(self.valid_idxs, batch_size))
             grouped = raw_grouped
 
         batch_idx_tuples = itertools.chain.from_iterable(grouped() for _ in range(num_epochs))
         for _ in range(num_batches):
-            batch_idxs = tuple(i for i in next(batch_idx_tuples) if i is not None)
+            batch_idxs = tuple(i for i in next(batch_idx_tuples) if i is not None) #returns ids in each tuple
             batch_data = self.get_by_idxs(batch_idxs)
             shared_batch_data = {}
             for key, val in batch_data.items():
                 if key.startswith('*'):
                     assert self.shared is not None
                     shared_key = key[1:]
-                    shared_batch_data[shared_key] = [index(self.shared[shared_key], each) for each in val]
+                    shared_batch_data[shared_key] = [index_nqa(self.shared[shared_key], each) for each in val]
             batch_data.update(shared_batch_data)
 
             batch_ds = DataSet(batch_data, self.data_type, shared=self.shared)
