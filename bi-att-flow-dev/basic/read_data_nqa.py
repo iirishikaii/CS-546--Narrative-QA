@@ -273,7 +273,7 @@ def get_squad_data_filter(config):
                 if len(xi[start[0]]) > config.sent_size_th:
                     return False
         else:
-            raise Exception() 
+            raise Exception()
         """
 
         return True
@@ -312,8 +312,8 @@ def update_config(config, data_sets):
     config.max_word_size = min(config.max_word_size, config.word_size_th)
 
     config.char_vocab_size = len(data_sets[0].shared['char2idx'])
-    config.word_emb_size = len(next(iter(data_sets[0].shared['word2vec'].values())))
-    config.word_vocab_size = len(data_sets[0].shared['word2idx'])
+    config.word_emb_size = len(next(iter(data_sets[0].shared['word2vec'].values()))) # SET EMBEDDING SIZE FROM TRAIN DATA
+    config.word_vocab_size = len(data_sets[0].shared['word2idx']) # SET VOCAB SIZE FROM TRAIN DATA
 
     if config.single:
         config.max_num_sents = 1

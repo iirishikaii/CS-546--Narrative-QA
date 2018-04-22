@@ -53,7 +53,7 @@ def set_dirs(config):
 
 
 def _config_debug(config):
-    if config.debug:
+    if config.debug: # Scale down params if debug mode ON
         config.num_steps = 2
         config.eval_period = 1
         config.log_period = 1
@@ -76,7 +76,7 @@ def _train(config):
     emb_mat = np.array([idx2vec_dict[idx] if idx in idx2vec_dict
                         else np.random.multivariate_normal(np.zeros(config.word_emb_size), np.eye(config.word_emb_size))
                         for idx in range(config.word_vocab_size)])
-    config.emb_mat = emb_mat
+    config.emb_mat = emb_mat # INITIALIZE EMB MAT IN CONFIG
 
     # construct model graph and variables (using default graph)
     pprint(config.__flags, indent=2)
