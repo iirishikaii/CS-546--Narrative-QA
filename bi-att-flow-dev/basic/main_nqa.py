@@ -9,7 +9,7 @@ import tensorflow as tf
 from tqdm import tqdm
 import numpy as np
 
-from basic.evaluator import ForwardEvaluator, MultiGPUF1Evaluator
+from basic.evaluator_nqa import ForwardEvaluator, MultiGPUF1Evaluator
 from basic.graph_handler import GraphHandler
 from basic.model_nqa import get_multi_gpu_models
 from basic.trainer import MultiGPUTrainer
@@ -83,7 +83,6 @@ def _train(config):
     models = get_multi_gpu_models(config)
     model = models[0]
     print("num params: {}".format(get_num_params()))
-    #return
     trainer = MultiGPUTrainer(config, models)
     evaluator = MultiGPUF1Evaluator(config, models, tensor_dict=model.tensor_dict if config.vis else None)
     graph_handler = GraphHandler(config, model)  # controls all tensors and variables in the graph, including loading /saving
@@ -91,7 +90,6 @@ def _train(config):
     # Variables
     sess = tf.Session(config=tf.ConfigProto(allow_soft_placement=True))
     graph_handler.initialize(sess)
-
     # Begin training
     num_steps = config.num_steps or int(math.ceil(train_data.num_examples / (config.batch_size * config.num_gpus))) * config.num_epochs
     global_step = 0

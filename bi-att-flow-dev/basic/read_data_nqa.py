@@ -183,24 +183,30 @@ def read_data(config, data_type, ref, data_filter=None):
         word_counter = shared['lower_word_counter'] if config.lower_word else shared['word_counter']
         char_counter = shared['char_counter']
         if config.finetune:
-            shared['word2idx'] = {word: idx + 2 for idx, word in
+            shared['word2idx'] = {word: idx + 4 for idx, word in
                                   enumerate(word for word, count in word_counter.items()
                                             if count > config.word_count_th or (config.known_if_glove and word in word2vec_dict))}
         else:
             assert config.known_if_glove
             assert config.use_glove_for_unk
-            shared['word2idx'] = {word: idx + 2 for idx, word in
+            shared['word2idx'] = {word: idx + 4 for idx, word in
                                   enumerate(word for word, count in word_counter.items()
                                             if count > config.word_count_th and word not in word2vec_dict)}
-        shared['char2idx'] = {char: idx + 2 for idx, char in
+        shared['char2idx'] = {char: idx + 4 for idx, char in
                               enumerate(char for char, count in char_counter.items()
                                         if count > config.char_count_th)}
         NULL = "-NULL-"
         UNK = "-UNK-"
+        EOS = "</s>"
+        SOS = "--SOS--"
         shared['word2idx'][NULL] = 0
         shared['word2idx'][UNK] = 1
+        shared['word2idx'][SOS] = 2
+        shared['word2idx'][EOS] = 3
         shared['char2idx'][NULL] = 0
         shared['char2idx'][UNK] = 1
+        shared['char2idx'][SOS] = 2
+        shared['char2idx'][EOS] = 3
         json.dump({'word2idx': shared['word2idx'], 'char2idx': shared['char2idx']}, open(shared_path, 'w'))
     else:
         new_shared = json.load(open(shared_path, 'r'))

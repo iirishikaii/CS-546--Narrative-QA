@@ -173,11 +173,15 @@ def prepro_each(args, data_type, start_ratio=0.0, stop_ratio=1.0, out_name="defa
 
                 answer1_tokenized = list(map(word_tokenize, sent_tokenize(qa['answer1'])))
                 answer1_tokenized = [process_tokens(tokens) for tokens in answer1_tokenized]
+                answer1_tokenized[len(answer1_tokenized)-1].append('</s>') #appending end token
                 #print(answer1_tokenized)
+
 
                 answer2_tokenized = list(map(word_tokenize, sent_tokenize(qa['answer2'])))
                 answer2_tokenized = [process_tokens(tokens) for tokens in answer2_tokenized]
+                answer2_tokenized[len(answer2_tokenized) - 1].append('</s>')  # appending end token
                 #print(answer2_tokenized)
+
 
                 ques_answers.append([answer1_tokenized,answer2_tokenized])
                 #print(ques_answers)
@@ -197,7 +201,7 @@ def prepro_each(args, data_type, start_ratio=0.0, stop_ratio=1.0, out_name="defa
     lower_word2vec_dict = get_word2vec(args, lower_word_counter)
 
     data = {'q': questions, 'cq': questions_char_list, '*x': document_ids,
-            'answerss': ques_answers, '*p': document_ids , '*cx': document_ids}
+            'answerss': ques_answers , '*cx': document_ids}
     shared = {'x': summaries, 'cx': summaries_char_list,'word_counter': word_counter,
               'char_counter': char_counter, 'lower_word_counter': lower_word_counter,
               'word2vec': word2vec_dict, 'lower_word2vec': lower_word2vec_dict}
