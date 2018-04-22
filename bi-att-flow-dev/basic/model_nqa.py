@@ -4,6 +4,7 @@ import itertools
 import numpy as np
 import tensorflow as tf
 from tensorflow.contrib.rnn import BasicLSTMCell
+from tensorflow.contrib.seq2seq import BasicDecoder
 
 from basic.read_data import DataSet
 from my.tensorflow import get_initializer
@@ -34,14 +35,22 @@ class Model(object):
         N, M, JX, JQ, VW, VC, W = \
             config.batch_size, config.max_num_sents, config.max_sent_size, \
             config.max_ques_size, config.word_vocab_size, config.char_vocab_size, config.max_word_size
-        self.x = tf.placeholder('int32', [N, None, None], name='x')
+
+        # Batch major format
+
+        # Context
+        self.x = tf.placeholder('int32', [N, None, None], name='x') # going to be [N, M, JX] i.e. [batch size, max sentences, max words]
         self.cx = tf.placeholder('int32', [N, None, None, W], name='cx')
         self.x_mask = tf.placeholder('bool', [N, None, None], name='x_mask')
-        self.q = tf.placeholder('int32', [N, None], name='q')
+
+        # Query
+        self.q = tf.placeholder('int32', [N, None], name='q') # going to be [N, JQ] i.e. [batch size, max words]
         self.cq = tf.placeholder('int32', [N, None, W], name='cq')
         self.q_mask = tf.placeholder('bool', [N, None], name='q_mask')
+
         self.y = tf.placeholder('bool', [N, None, None], name='y')
         self.y2 = tf.placeholder('bool', [N, None, None], name='y2')
+
         self.wy = tf.placeholder('bool', [N, None, None], name='wy')
         self.is_train = tf.placeholder('bool', [], name='is_train')
         self.new_emb_mat = tf.placeholder('float', [None, config.word_emb_size], name='new_emb_mat')
@@ -76,8 +85,8 @@ class Model(object):
             config.batch_size, config.max_num_sents, config.max_sent_size, \
             config.max_ques_size, config.word_vocab_size, config.char_vocab_size, config.hidden_size, \
             config.max_word_size
-        JX = tf.shape(self.x)[2]
-        JQ = tf.shape(self.q)[1]
+        JX = tf.shape(self.x)[2]  # words
+        JQ = tf.shape(self.q)[1] # words
         M = tf.shape(self.x)[1]
         dc, dw, dco = config.char_emb_size, config.word_emb_size, config.char_out_size
 
@@ -116,8 +125,8 @@ class Model(object):
                         word_emb_mat = tf.concat(axis=0, values=[word_emb_mat, self.new_emb_mat])
 
                 with tf.name_scope("word"):
-                    Ax = tf.nn.embedding_lookup(word_emb_mat, self.x)  # [N, M, JX, d]
-                    Aq = tf.nn.embedding_lookup(word_emb_mat, self.q)  # [N, JQ, d]
+                    Ax = tf.nn.embedding_lookup(word_emb_mat, self.x)  # [N, M, JX, d] i.e. [batch size, max sentences, max words, embedding size]
+                    Aq = tf.nn.embedding_lookup(word_emb_mat, self.q)  # [N, JQ, d] i.e. [batch size, max words, embedding size]
                     self.tensor_dict['x'] = Ax
                     self.tensor_dict['q'] = Aq
                 if config.use_char_emb:
@@ -183,7 +192,7 @@ class Model(object):
                 second_cell_bw = AttentionCell(cell3_bw, u, mask=q_mask, mapper='sim',
                                                input_keep_prob=self.config.input_keep_prob, is_train=self.is_train)
             else:
-                p0 = attention_layer(config, self.is_train, h, u, h_mask=self.x_mask, u_mask=self.q_mask, scope="p0", tensor_dict=self.tensor_dict)
+                p0 = attention_layer(config, self.is_train, h, u, h_mask=self.x_mask, u_mask=self.q_mask, scope="p0", tensor_dict=self.tensor_dict) # p0 seems to be G in paper
                 first_cell_fw = d_cell2_fw
                 second_cell_fw = d_cell3_fw
                 first_cell_bw = d_cell2_bw
@@ -192,7 +201,7 @@ class Model(object):
             (fw_g0, bw_g0), _ = bidirectional_dynamic_rnn(first_cell_fw, first_cell_bw, p0, x_len, dtype='float', scope='g0')  # [N, M, JX, 2d]
             g0 = tf.concat(axis=3, values=[fw_g0, bw_g0])
             (fw_g1, bw_g1), _ = bidirectional_dynamic_rnn(second_cell_fw, second_cell_bw, g0, x_len, dtype='float', scope='g1')  # [N, M, JX, 2d]
-            g1 = tf.concat(axis=3, values=[fw_g1, bw_g1])
+            g1 = tf.concat(axis=3, values=[fw_g1, bw_g1]) # g1 seems to be M in paper
 
             logits = get_logits([g1, p0], d, True, wd=config.wd, input_keep_prob=config.input_keep_prob,
                                 mask=self.x_mask, is_train=self.is_train, func=config.answer_func, scope='logits1')
@@ -200,8 +209,8 @@ class Model(object):
             a1i = tf.tile(tf.expand_dims(tf.expand_dims(a1i, 1), 1), [1, M, JX, 1])
 
             (fw_g2, bw_g2), _ = bidirectional_dynamic_rnn(d_cell4_fw, d_cell4_bw, tf.concat(axis=3, values=[p0, g1, a1i, g1 * a1i]),
-                                                          x_len, dtype='float', scope='g2')  # [N, M, JX, 2d]
-            g2 = tf.concat(axis=3, values=[fw_g2, bw_g2])
+                                                          x_len, dtype='float', scope='g2')  # [N, M, JX, 2d] # computing M_2
+            g2 = tf.concat(axis=3, values=[fw_g2, bw_g2]) # g2 seems to be M_2 in paper
             logits2 = get_logits([g2, p0], d, True, wd=config.wd, input_keep_prob=config.input_keep_prob,
                                  mask=self.x_mask,
                                  is_train=self.is_train, func=config.answer_func, scope='logits2')
@@ -230,7 +239,7 @@ class Model(object):
 
             yp = tf.reshape(flat_yp, [-1, M, JX])
             yp2 = tf.reshape(flat_yp2, [-1, M, JX])
-            wyp = tf.nn.sigmoid(logits2)
+            wyp = tf.nn.sigmoid(logits2) # not sure why this exists -- seems to be an alternative to the softmax for end index
 
             self.tensor_dict['g1'] = g1
             self.tensor_dict['g2'] = g2
