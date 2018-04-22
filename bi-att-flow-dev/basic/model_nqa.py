@@ -11,6 +11,7 @@ from my.tensorflow import get_initializer
 from my.tensorflow.nn import softsel, get_logits, highway_network, multi_conv1d
 from my.tensorflow.rnn import bidirectional_dynamic_rnn
 from my.tensorflow.rnn_cell import SwitchableDropoutWrapper, AttentionCell
+from tensorflow.python.layers import core as layers_core
 
 
 def get_multi_gpu_models(config):
@@ -200,8 +201,67 @@ class Model(object):
 
             (fw_g0, bw_g0), _ = bidirectional_dynamic_rnn(first_cell_fw, first_cell_bw, p0, x_len, dtype='float', scope='g0')  # [N, M, JX, 2d]
             g0 = tf.concat(axis=3, values=[fw_g0, bw_g0])
-            (fw_g1, bw_g1), _ = bidirectional_dynamic_rnn(second_cell_fw, second_cell_bw, g0, x_len, dtype='float', scope='g1')  # [N, M, JX, 2d]
+            (fw_g1, bw_g1), (my_fw_final_state, my_bw_final_state) = bidirectional_dynamic_rnn(second_cell_fw, second_cell_bw, g0, x_len, dtype='float', scope='g1')  # [N, M, JX, 2d]
             g1 = tf.concat(axis=3, values=[fw_g1, bw_g1]) # g1 seems to be M in paper
+
+            # TODO: Output layer starts here
+
+            # print(tf.shape(my_fw_final_state)) # Tensor("model_0/main/Shape_14:0", shape=(3,), dtype=int32, device=/device:GPU:0)
+            # print(my_fw_final_state) # LSTMStateTuple(c=<tf.Tensor 'model_0/main/g1/fw/fw/while/Exit_2:0' shape=(?, 100) dtype=float32>, h=<tf.Tensor 'model_0/main/g1/fw/fw/while/Exit_3:0' shape=(?, 100) dtype=float32>)
+
+            # FIXME: Concatenate my_fw_final_state and my_bw_final_state
+            # For now go with my_fw_final_state only
+
+            # Decoder embedding
+
+            # Embedding decoder/matrix
+
+            tgt_vocab_size = VW # hparam
+            print(tgt_vocab_size)
+            tgt_embedding_size = dw # hparam
+            print(tgt_embedding_size)
+
+            embedding_decoder = word_emb_mat
+            # tf.Variable(
+            #     tf.constant(0.0, shape=[tgt_vocab_size, tgt_embedding_size]), trainable=False, name="embedding_decoder"
+            # )
+
+            # Look up embedding:
+            self.decoder_inputs = tf.placeholder('int32', [N, None], name='decoder_inputs') # [batch_size, max words]
+            print(self.decoder_inputs)
+            self.target_sequence_length = tf.placeholder(shape=(N,), dtype=tf.int32, name='target_sequence_length') # batch_size
+            print(self.target_sequence_length)
+
+            decoder_emb_inp = tf.nn.embedding_lookup(embedding_decoder, self.decoder_inputs) # [batch_size, max words, embedding_size]
+            print(decoder_emb_inp)
+
+            def decode(helper, scope, reuse=None, maximum_iterations=None):
+                with tf.variable_scope(scope, reuse=reuse):
+                    decoder_cell = BasicLSTMCell(d, state_is_tuple=True) # hparam
+                    projection_layer = layers_core.Dense(
+                        tgt_vocab_size, use_bias=False) # hparam
+
+                    decoder = tf.contrib.seq2seq.BasicDecoder(
+                        decoder_cell, helper, my_fw_final_state,
+                        output_layer=projection_layer) # decoder
+
+                    final_outputs, final_decoder_state, final_sequence_lengths = tf.contrib.seq2seq.dynamic_decode(
+                        decoder, output_time_major=False, impute_finished=True, maximum_iterations=maximum_iterations) # dynamic decoding # TODO: check tutorial for more
+
+                    return final_outputs
+
+            # Decoder
+
+            training_helper = tf.contrib.seq2seq.TrainingHelper(
+                decoder_emb_inp, self.target_sequence_length, time_major=False) # helper
+
+            final_outputs = decode(helper=training_helper, scope="HAHA", reuse=None)
+
+            decoder_logits_train = final_outputs.rnn_output
+
+            print(decoder_logits_train)
+
+            # TODO: Output layer ends here
 
             logits = get_logits([g1, p0], d, True, wd=config.wd, input_keep_prob=config.input_keep_prob,
                                 mask=self.x_mask, is_train=self.is_train, func=config.answer_func, scope='logits1')
