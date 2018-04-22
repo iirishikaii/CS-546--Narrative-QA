@@ -62,6 +62,9 @@ class Model(object):
         self.target_sequence_length = tf.placeholder(shape=(N,), dtype=tf.int32, name='target_sequence_length') # batch_size
         print(self.target_sequence_length) # FIXME: EXTERNAL: Obtain this from feed dict
 
+        self.decoder_targets = tf.placeholder(shape=(None, None), dtype=tf.int32, name='decoder_targets') # [batch_size, max_decoder_time]
+        self.target_weights = tf.placeholder(shape=(None, None), dtype=tf.float32, name='target_weights') # [batch_size, max_decoder_time] # Same as loss mask
+
         # Define misc
         self.tensor_dict = {}
 
@@ -268,51 +271,17 @@ class Model(object):
         JX = tf.shape(self.x)[2]
         M = tf.shape(self.x)[1]
         JQ = tf.shape(self.q)[1]
+        N = config.batch_size
 
-        loss_mask = tf.reduce_max(tf.cast(self.q_mask, 'float'), 1)
-        if config.wy:
-            losses = tf.nn.sigmoid_cross_entropy_with_logits(
-                logits=tf.reshape(self.logits2, [-1, M, JX]), labels=tf.cast(self.wy, 'float'))  # [N, M, JX]
-            num_pos = tf.reduce_sum(tf.cast(self.wy, 'float'))
-            num_neg = tf.reduce_sum(tf.cast(self.x_mask, 'float')) - num_pos
-            damp_ratio = num_pos / num_neg
-            dampened_losses = losses * (
-                (tf.cast(self.x_mask, 'float') - tf.cast(self.wy, 'float')) * damp_ratio + tf.cast(self.wy, 'float'))
-            new_losses = tf.reduce_sum(dampened_losses, [1, 2])
-            ce_loss = tf.reduce_mean(loss_mask * new_losses)
-            """
-            if config.na:
-                na = tf.reshape(self.na, [-1, 1])
-                concat_y = tf.concat(1, [na, tf.reshape(self.wy, [-1, M * JX])])
-                losses = tf.nn.softmax_cross_entropy_with_logits(
-                    self.concat_logits, tf.cast(concat_y, 'float') / tf.reduce_sum(tf.cast(self.wy, 'float')))
-            else:
-                losses = tf.nn.softmax_cross_entropy_with_logits(
-                    self.logits2, tf.cast(tf.reshape(self.wy, [-1, M * JX]), 'float') / tf.reduce_sum(tf.cast(self.wy, 'float')))
-            ce_loss = tf.reduce_mean(loss_mask * losses)
-            """
-            tf.add_to_collection('losses', ce_loss)
+        # Loss
+        crossent = tf.nn.sparse_softmax_cross_entropy_with_logits(labels=self.decoder_targets, logits=self.decoder_logits_train)
+        train_loss = (tf.reduce_sum(crossent * self.target_weights) / tf.cast(N, dtype=tf.float32))
 
-        else:
-            if config.na:
-                na = tf.reshape(self.na, [-1, 1])
-                concat_y = tf.concat(axis=1, values=[na, tf.reshape(self.y, [-1, M * JX])])
-                losses = tf.nn.softmax_cross_entropy_with_logits(logits=self.concat_logits, labels=tf.cast(concat_y, 'float'))
-                concat_y2 = tf.concat(axis=1, values=[na, tf.reshape(self.y2, [-1, M * JX])])
-                losses2 = tf.nn.softmax_cross_entropy_with_logits(logits=self.concat_logits2, labels=tf.cast(concat_y2, 'float'))
-            else:
-                losses = tf.nn.softmax_cross_entropy_with_logits(
-                    logits=self.logits, labels=tf.cast(tf.reshape(self.y, [-1, M * JX]), 'float'))
-                losses2 = tf.nn.softmax_cross_entropy_with_logits(
-                    logits=self.logits2, labels=tf.cast(tf.reshape(self.y2, [-1, M * JX]), 'float'))
-            ce_loss = tf.reduce_mean(loss_mask * losses)
-            ce_loss2 = tf.reduce_mean(loss_mask * losses2)
-            tf.add_to_collection('losses', ce_loss)
-            tf.add_to_collection("losses", ce_loss2)
+        tf.add_to_collection('losses', train_loss)
 
-        self.loss = tf.add_n(tf.get_collection('losses', scope=self.scope), name='loss')  # loss for the entire batch ?
+        self.loss = tf.add_n(tf.get_collection('losses', scope=self.scope), name='loss') # loss for the entire batch ?
         tf.summary.scalar(self.loss.op.name, self.loss)
-        tf.add_to_collection('ema/scalar', self.loss)
+        tf.add_to_collection('ema/scalar', self.loss) # FIXME: Needed?
 
     def _build_ema(self):
         self.ema = tf.train.ExponentialMovingAverage(self.config.decay)
