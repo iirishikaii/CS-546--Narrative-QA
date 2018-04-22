@@ -57,6 +57,11 @@ class Model(object):
         self.new_emb_mat = tf.placeholder('float', [None, config.word_emb_size], name='new_emb_mat')
         self.na = tf.placeholder('bool', [N], name='na')
 
+        self.decoder_inputs = tf.placeholder('int32', [N, None], name='decoder_inputs') # [batch_size, max words]
+        print(self.decoder_inputs) # FIXME: EXTERNAL: Obtain decoder inputs from feed dict
+        self.target_sequence_length = tf.placeholder(shape=(N,), dtype=tf.int32, name='target_sequence_length') # batch_size
+        print(self.target_sequence_length) # FIXME: EXTERNAL: Obtain this from feed dict
+
         # Define misc
         self.tensor_dict = {}
 
@@ -65,6 +70,7 @@ class Model(object):
         self.yp = None
         self.var_list = None
         self.na_prob = None
+        self.decoder_logits_train = None
 
         # Loss outputs
         self.loss = None
@@ -226,12 +232,7 @@ class Model(object):
             #     tf.constant(0.0, shape=[tgt_vocab_size, tgt_embedding_size]), trainable=False, name="embedding_decoder"
             # )
 
-            # Look up embedding:
-            self.decoder_inputs = tf.placeholder('int32', [N, None], name='decoder_inputs') # [batch_size, max words]
-            print(self.decoder_inputs) # FIXME: EXTERNAL: Obtain decoder inputs from feed dict
-            self.target_sequence_length = tf.placeholder(shape=(N,), dtype=tf.int32, name='target_sequence_length') # batch_size
-            print(self.target_sequence_length) # FIXME: EXTERNAL: Obtain this from feed dict
-
+            # Look up embedding
             decoder_emb_inp = tf.nn.embedding_lookup(embedding_decoder, self.decoder_inputs) # [batch_size, max words, embedding_size]
             print(decoder_emb_inp)
 
@@ -260,55 +261,7 @@ class Model(object):
             decoder_logits_train = final_outputs.rnn_output
 
             print(decoder_logits_train)
-
-            # TODO: Output layer ends here
-
-            logits = get_logits([g1, p0], d, True, wd=config.wd, input_keep_prob=config.input_keep_prob,
-                                mask=self.x_mask, is_train=self.is_train, func=config.answer_func, scope='logits1')
-            a1i = softsel(tf.reshape(g1, [N, M * JX, 2 * d]), tf.reshape(logits, [N, M * JX]))
-            a1i = tf.tile(tf.expand_dims(tf.expand_dims(a1i, 1), 1), [1, M, JX, 1])
-
-            (fw_g2, bw_g2), _ = bidirectional_dynamic_rnn(d_cell4_fw, d_cell4_bw, tf.concat(axis=3, values=[p0, g1, a1i, g1 * a1i]),
-                                                          x_len, dtype='float', scope='g2')  # [N, M, JX, 2d] # computing M_2
-            g2 = tf.concat(axis=3, values=[fw_g2, bw_g2]) # g2 seems to be M_2 in paper
-            logits2 = get_logits([g2, p0], d, True, wd=config.wd, input_keep_prob=config.input_keep_prob,
-                                 mask=self.x_mask,
-                                 is_train=self.is_train, func=config.answer_func, scope='logits2')
-
-            flat_logits = tf.reshape(logits, [-1, M * JX])
-            flat_yp = tf.nn.softmax(flat_logits)  # [-1, M*JX]
-            flat_logits2 = tf.reshape(logits2, [-1, M * JX])
-            flat_yp2 = tf.nn.softmax(flat_logits2)
-
-            if config.na:
-                na_bias = tf.get_variable("na_bias", shape=[], dtype='float')
-                na_bias_tiled = tf.tile(tf.reshape(na_bias, [1, 1]), [N, 1])  # [N, 1]
-                concat_flat_logits = tf.concat(axis=1, values=[na_bias_tiled, flat_logits])
-                concat_flat_yp = tf.nn.softmax(concat_flat_logits)
-                na_prob = tf.squeeze(tf.slice(concat_flat_yp, [0, 0], [-1, 1]), [1])
-                flat_yp = tf.slice(concat_flat_yp, [0, 1], [-1, -1])
-
-                concat_flat_logits2 = tf.concat(axis=1, values=[na_bias_tiled, flat_logits2])
-                concat_flat_yp2 = tf.nn.softmax(concat_flat_logits2)
-                na_prob2 = tf.squeeze(tf.slice(concat_flat_yp2, [0, 0], [-1, 1]), [1])  # [N]
-                flat_yp2 = tf.slice(concat_flat_yp2, [0, 1], [-1, -1])
-
-                self.concat_logits = concat_flat_logits
-                self.concat_logits2 = concat_flat_logits2
-                self.na_prob = na_prob * na_prob2
-
-            yp = tf.reshape(flat_yp, [-1, M, JX])
-            yp2 = tf.reshape(flat_yp2, [-1, M, JX])
-            wyp = tf.nn.sigmoid(logits2) # not sure why this exists -- seems to be an alternative to the softmax for end index
-
-            self.tensor_dict['g1'] = g1
-            self.tensor_dict['g2'] = g2
-
-            self.logits = flat_logits
-            self.logits2 = flat_logits2
-            self.yp = yp
-            self.yp2 = yp2
-            self.wyp = wyp
+            self.decoder_logits_train = decoder_logits_train
 
     def _build_loss(self):
         config = self.config
