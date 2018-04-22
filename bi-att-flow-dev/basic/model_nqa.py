@@ -297,7 +297,7 @@ class Model(object):
             tf.add_to_collection('losses', ce_loss)
             tf.add_to_collection("losses", ce_loss2)
 
-        self.loss = tf.add_n(tf.get_collection('losses', scope=self.scope), name='loss')
+        self.loss = tf.add_n(tf.get_collection('losses', scope=self.scope), name='loss')  # loss for the entire batch ?
         tf.summary.scalar(self.loss.op.name, self.loss)
         tf.add_to_collection('ema/scalar', self.loss)
 
