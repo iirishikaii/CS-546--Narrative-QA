@@ -12,7 +12,7 @@ from my.tensorflow.nn import softsel, get_logits, highway_network, multi_conv1d
 from my.tensorflow.rnn import bidirectional_dynamic_rnn
 from my.tensorflow.rnn_cell import SwitchableDropoutWrapper, AttentionCell
 from tensorflow.python.layers import core as layers_core
-
+from my.tensorflow import flatten
 
 def get_multi_gpu_models(config):
     models = []
@@ -80,6 +80,7 @@ class Model(object):
 
         self._build_forward()
         self._build_loss()
+        # TODO: Delete this?
         self.var_ema = None
         if rep:
             self._build_var_ema()
@@ -210,10 +211,24 @@ class Model(object):
 
             (fw_g0, bw_g0), _ = bidirectional_dynamic_rnn(first_cell_fw, first_cell_bw, p0, x_len, dtype='float', scope='g0')  # [N, M, JX, 2d]
             g0 = tf.concat(axis=3, values=[fw_g0, bw_g0])
-            (fw_g1, bw_g1), (my_fw_final_state, my_bw_final_state) = bidirectional_dynamic_rnn(second_cell_fw, second_cell_bw, g0, x_len, dtype='float', scope='g1')  # [N, M, JX, 2d]
-            g1 = tf.concat(axis=3, values=[fw_g1, bw_g1]) # g1 seems to be M in paper
 
-            # TODO: Output layer starts here
+            # (fw_g1, _), (my_fw_final_state, _) = bidirectional_dynamic_rnn(second_cell_fw, second_cell_bw, g0, x_len, dtype='float', scope='g1')  # [N, M, JX, 2d]
+            # g1 = tf.concat(axis=3, values=[fw_g1, bw_g1]) # g1 seems to be M in paper
+
+            flat_g0 = flatten(g0, 2)  # [-1, J, d]
+            flat_x_len = None if x_len is None else tf.cast(flatten(x_len, 0), 'int64')
+
+            _, my_fw_final_state = tf.nn.dynamic_rnn(
+                cell = second_cell_fw,
+                inputs = flat_g0,
+                sequence_length = flat_x_len,
+                initial_state=None,
+                dtype='float',
+                parallel_iterations=None,
+                swap_memory=False,
+                time_major=False,
+                scope='my_fw_final_state'
+            )
 
             # print(tf.shape(my_fw_final_state)) # Tensor("model_0/main/Shape_14:0", shape=(3,), dtype=int32, device=/device:GPU:0)
             # print(my_fw_final_state) # LSTMStateTuple(c=<tf.Tensor 'model_0/main/g1/fw/fw/while/Exit_2:0' shape=(?, 100) dtype=float32>, h=<tf.Tensor 'model_0/main/g1/fw/fw/while/Exit_3:0' shape=(?, 100) dtype=float32>)
