@@ -216,7 +216,7 @@ class Model(object):
 
             # Embedding decoder/matrix
 
-            tgt_vocab_size = VW # hparam
+            tgt_vocab_size = VW # hparam # FIXME: Obtain embeddings differently?
             print(tgt_vocab_size)
             tgt_embedding_size = dw # hparam
             print(tgt_embedding_size)
@@ -228,9 +228,9 @@ class Model(object):
 
             # Look up embedding:
             self.decoder_inputs = tf.placeholder('int32', [N, None], name='decoder_inputs') # [batch_size, max words]
-            print(self.decoder_inputs)
+            print(self.decoder_inputs) # FIXME: EXTERNAL: Obtain decoder inputs from feed dict
             self.target_sequence_length = tf.placeholder(shape=(N,), dtype=tf.int32, name='target_sequence_length') # batch_size
-            print(self.target_sequence_length)
+            print(self.target_sequence_length) # FIXME: EXTERNAL: Obtain this from feed dict
 
             decoder_emb_inp = tf.nn.embedding_lookup(embedding_decoder, self.decoder_inputs) # [batch_size, max words, embedding_size]
             print(decoder_emb_inp)
