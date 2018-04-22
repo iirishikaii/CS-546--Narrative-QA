@@ -49,24 +49,24 @@ class Model(object):
         self.cq = tf.placeholder('int32', [N, None, W], name='cq')
         self.q_mask = tf.placeholder('bool', [N, None], name='q_mask')
 
+        # Outputs
         self.y = tf.placeholder('bool', [N, None, None], name='y')
         self.y2 = tf.placeholder('bool', [N, None, None], name='y2')
 
+        # Misc
         self.wy = tf.placeholder('bool', [N, None, None], name='wy')
         self.is_train = tf.placeholder('bool', [], name='is_train')
         self.new_emb_mat = tf.placeholder('float', [None, config.word_emb_size], name='new_emb_mat')
         self.na = tf.placeholder('bool', [N], name='na')
 
+        # New placeholders for our case
         self.decoder_inputs = tf.placeholder('int32', [N, None], name='decoder_inputs') # [batch_size, max words]
-        print(self.decoder_inputs) # FIXME: EXTERNAL: Obtain decoder inputs from feed dict
         self.target_sequence_length = tf.placeholder(shape=(N,), dtype=tf.int32, name='target_sequence_length') # batch_size
-        print(self.target_sequence_length) # FIXME: EXTERNAL: Obtain this from feed dict
-
         self.decoder_targets = tf.placeholder(shape=(None, None), dtype=tf.int32, name='decoder_targets') # [batch_size, max_decoder_time]
         self.target_weights = tf.placeholder(shape=(None, None), dtype=tf.float32, name='target_weights') # [batch_size, max_decoder_time] # Same as loss mask
 
         # Define misc
-        self.tensor_dict = {}
+        self.tensor_dict = {} # seems to be for keeping track of intermediate values during forward pass -- not super important maybe?
 
         # Forward outputs / loss inputs
         self.logits = None
@@ -190,7 +190,7 @@ class Model(object):
             self.tensor_dict['h'] = h
 
         with tf.variable_scope("main"):
-            if config.dynamic_att: #not true
+            if config.dynamic_att: # not true
                 p0 = h
                 u = tf.reshape(tf.tile(tf.expand_dims(u, 1), [1, M, 1, 1]), [N * M, JQ, 2 * d])
                 q_mask = tf.reshape(tf.tile(tf.expand_dims(self.q_mask, 1), [1, M, 1]), [N * M, JQ])
@@ -214,6 +214,7 @@ class Model(object):
 
             # (fw_g1, _), (my_fw_final_state, _) = bidirectional_dynamic_rnn(second_cell_fw, second_cell_bw, g0, x_len, dtype='float', scope='g1')  # [N, M, JX, 2d]
             # g1 = tf.concat(axis=3, values=[fw_g1, bw_g1]) # g1 seems to be M in paper
+            # FIXME: Concatenate my_fw_final_state and my_bw_final_state
 
             flat_g0 = flatten(g0, 2)  # [-1, J, d]
             flat_x_len = None if x_len is None else tf.cast(flatten(x_len, 0), 'int64')
@@ -228,12 +229,11 @@ class Model(object):
                 swap_memory=False,
                 time_major=False,
                 scope='my_fw_final_state'
-            )
+            ) # FIXME: Replace with bi-rnn
 
             # print(tf.shape(my_fw_final_state)) # Tensor("model_0/main/Shape_14:0", shape=(3,), dtype=int32, device=/device:GPU:0)
             # print(my_fw_final_state) # LSTMStateTuple(c=<tf.Tensor 'model_0/main/g1/fw/fw/while/Exit_2:0' shape=(?, 100) dtype=float32>, h=<tf.Tensor 'model_0/main/g1/fw/fw/while/Exit_3:0' shape=(?, 100) dtype=float32>)
 
-            # FIXME: Concatenate my_fw_final_state and my_bw_final_state
             # For now go with my_fw_final_state only
 
             # Decoder embedding
@@ -270,7 +270,6 @@ class Model(object):
                     return final_outputs
 
             # Decoder
-
             training_helper = tf.contrib.seq2seq.TrainingHelper(
                 decoder_emb_inp, self.target_sequence_length, time_major=False) # helper
 

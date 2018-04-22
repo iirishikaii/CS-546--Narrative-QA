@@ -85,7 +85,7 @@ def _train(config):
     print("num params: {}".format(get_num_params()))
     #return
     trainer = MultiGPUTrainer(config, models)
-    # evaluator = MultiGPUF1Evaluator(config, models, tensor_dict=model.tensor_dict if config.vis else None)
+    # evaluator = MultiGPUF1Evaluator(config, models, tensor_dict=model.tensor_dict if config.vis else None) # FIXME: Put this back!
     graph_handler = GraphHandler(config, model)  # controls all tensors and variables in the graph, including loading /saving
 
     # Variables
