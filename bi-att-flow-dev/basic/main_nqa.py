@@ -86,6 +86,8 @@ def _train(config):
     #return
     trainer = MultiGPUTrainer(config, models)
     # evaluator = MultiGPUF1Evaluator(config, models, tensor_dict=model.tensor_dict if config.vis else None) # FIXME: Put this back!
+    #BLEU evaluator
+    #evaluator = BleuEvaluator(config, models, tensor_dict = model.tensor_dict if config.vis else None)
     graph_handler = GraphHandler(config, model)  # controls all tensors and variables in the graph, including loading /saving
 
     # Variables
@@ -148,6 +150,8 @@ def _test(config):
     models = get_multi_gpu_models(config)
     model = models[0]
     evaluator = MultiGPUF1Evaluator(config, models, tensor_dict=models[0].tensor_dict if config.vis else None)
+    #BLEU evaluator
+    #evaluator = BleuEvaluator(config, models, tensor_dict = model.tensor_dict if config.vis else None)
     graph_handler = GraphHandler(config, model)
 
     sess = tf.Session(config=tf.ConfigProto(allow_soft_placement=True))
