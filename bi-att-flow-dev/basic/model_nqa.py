@@ -63,7 +63,6 @@ class Model(object):
         self.decoder_inputs = tf.placeholder('int32', [N, None], name='decoder_inputs') # [batch_size, max words]
         self.target_sequence_length = tf.placeholder(shape=(N,), dtype=tf.int32, name='target_sequence_length') # batch_size
         self.decoder_targets = tf.placeholder(shape=(None, None), dtype=tf.int32, name='decoder_targets') # [batch_size, max_decoder_time]
-        self.target_weights = tf.placeholder(shape=(None, None), dtype=tf.float32, name='target_weights') # [batch_size, max_decoder_time] # Same as loss mask
 
         # Define misc
         self.tensor_dict = {} # seems to be for keeping track of intermediate values during forward pass -- not super important maybe?
@@ -287,9 +286,12 @@ class Model(object):
         JQ = tf.shape(self.q)[1]
         N = config.batch_size
 
+        loss_mask = tf.reduce_max(tf.cast(self.q_mask, 'float'), 1) # [N]
+
         # Loss
         crossent = tf.nn.sparse_softmax_cross_entropy_with_logits(labels=self.decoder_targets, logits=self.decoder_logits_train)
-        train_loss = (tf.reduce_sum(crossent * self.target_weights) / tf.cast(N, dtype=tf.float32))
+        print("dhruv and prashant are here: " + str(crossent.get_shape()))
+        train_loss = tf.reduce_sum(tf.reduce_sum(crossent, axis=1) * loss_mask) / tf.cast(N, dtype=tf.float32)
 
         tf.add_to_collection('losses', train_loss)
 
