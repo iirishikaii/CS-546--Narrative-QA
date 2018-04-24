@@ -9,7 +9,7 @@ import tensorflow as tf
 from tqdm import tqdm
 import numpy as np
 
-from basic.evaluator import ForwardEvaluator, MultiGPUF1Evaluator
+from basic.evaluator import ForwardEvaluator, MultiGPUF1Evaluator, BleuEvaluator
 from basic.graph_handler import GraphHandler
 from basic.model_nqa import get_multi_gpu_models
 from basic.trainer import MultiGPUTrainer
@@ -87,7 +87,7 @@ def _train(config):
     trainer = MultiGPUTrainer(config, models)
     # evaluator = MultiGPUF1Evaluator(config, models, tensor_dict=model.tensor_dict if config.vis else None) # FIXME: Put this back!
     #BLEU evaluator
-    #evaluator = BleuEvaluator(config, models, tensor_dict = model.tensor_dict if config.vis else None)
+    evaluator = BleuEvaluator(config, models, tensor_dict = model.tensor_dict if config.vis else None)
     graph_handler = GraphHandler(config, model)  # controls all tensors and variables in the graph, including loading /saving
 
     # Variables
@@ -149,9 +149,9 @@ def _test(config):
     pprint(config.__flags, indent=2)
     models = get_multi_gpu_models(config)
     model = models[0]
-    evaluator = MultiGPUF1Evaluator(config, models, tensor_dict=models[0].tensor_dict if config.vis else None)
+    #evaluator = MultiGPUF1Evaluator(config, models, tensor_dict=models[0].tensor_dict if config.vis else None)
     #BLEU evaluator
-    #evaluator = BleuEvaluator(config, models, tensor_dict = model.tensor_dict if config.vis else None)
+    evaluator = BleuEvaluator(config, models, tensor_dict = model.tensor_dict if config.vis else None)
     graph_handler = GraphHandler(config, model)
 
     sess = tf.Session(config=tf.ConfigProto(allow_soft_placement=True))

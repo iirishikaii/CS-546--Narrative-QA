@@ -1,6 +1,6 @@
 import numpy as np
 import tensorflow as tf
-
+import bleu
 from basic.read_data import DataSet
 from my.nltk_utils import span_f1
 from my.tensorflow import padded_reshape
@@ -451,3 +451,29 @@ class ForwardEvaluator(Evaluator):
         return max_f1
 
 
+#class BleuEvaluation(Evaluation):
+
+
+class BleuEvaluator(Evaluator):
+
+    def __init__(self, config, model, tensor_dict=None):
+        super(BleuEvaluator, self).__init__(config, model, tensor_dict=tensor_dict)
+ #       self.yp2 = model.yp2
+ #       self.wyp = model.wyp 
+ #       self.loss = model.loss
+        if config.na:
+            self.na = model.na_prob
+     #softmax on decoder logits train to get the probability distribution over the vocab.        
+    def get_evaluation(self, sess, batch):
+        pred_dist = tf.nn.softmax(model.decoder_logits_train)
+        #take max over the vocab to get the predicted words
+        translation_corpus = tf.argmax(pred_dist, dimension = 2)
+        #reference corpus
+        gold_dist = model.decoder_target
+        reference_corpus = tf.argmax(gold_dist, dimension = 2)
+        e = bleu.compute_bleu(reference_corpus, translation_corpus)
+        return e
+    
+        
+    
+    
