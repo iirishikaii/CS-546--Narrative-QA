@@ -264,7 +264,7 @@ class Model(object):
                         decoder_cell, helper, my_fw_final_state,
                         output_layer=projection_layer) # decoder
 
-                    final_outputs, _ = tf.contrib.seq2seq.dynamic_decode(
+                    final_outputs, final_decoder_state, final_sequence_lengths = tf.contrib.seq2seq.dynamic_decode(
                         decoder, output_time_major=False, impute_finished=True) # dynamic decoding # TODO: check tutorial for more
 
                     return final_outputs
@@ -491,7 +491,7 @@ class Model(object):
                     each = _get_word(ansik)
                     assert isinstance(each, int), each
                     answer_eos[i,k] = each
-        
+
 
         if supervised:
             assert np.sum(~(x_mask | ~wy)) == 0

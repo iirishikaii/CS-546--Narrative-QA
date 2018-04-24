@@ -20,7 +20,7 @@ def main():
 def get_args():
     parser = argparse.ArgumentParser()
     home = os.path.expanduser("~")
-    home = os.path.join(home,"Documents","cs546")
+    # home = os.path.join(home,"Documents","cs546")
     print (home)
     source_dir = os.path.join(home, "data", "narrativeqa-master")
     target_dir = "data/narrativeqa"
