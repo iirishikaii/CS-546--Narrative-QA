@@ -197,7 +197,7 @@ def prepro_each(args, data_type, start_ratio=0.0, stop_ratio=1.0, out_name="defa
     lower_word2vec_dict = get_word2vec(args, lower_word_counter)
 
     data = {'q': questions, 'cq': questions_char_list, '*x': document_ids,
-            'answerss': ques_answers, '*p': document_ids , '*cx': document_ids}
+            'answerss': ques_answers, '*cx': document_ids}
     shared = {'x': summaries, 'cx': summaries_char_list,'word_counter': word_counter,
               'char_counter': char_counter, 'lower_word_counter': lower_word_counter,
               'word2vec': word2vec_dict, 'lower_word2vec': lower_word2vec_dict}
