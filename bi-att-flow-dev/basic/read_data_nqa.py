@@ -107,6 +107,7 @@ class DataSet(object):
                     shared_key = key[1:]
                     shared_batch_data[shared_key] = [index_nqa(self.shared[shared_key], each) for each in val]
             batch_data.update(shared_batch_data)
+            print ("dhruv len batch new_emb_mat",)
 
             batch_ds = DataSet(batch_data, self.data_type, shared=self.shared)
             yield batch_idxs, batch_ds
@@ -183,24 +184,30 @@ def read_data(config, data_type, ref, data_filter=None):
         word_counter = shared['lower_word_counter'] if config.lower_word else shared['word_counter']
         char_counter = shared['char_counter']
         if config.finetune:
-            shared['word2idx'] = {word: idx + 2 for idx, word in
+            shared['word2idx'] = {word: idx + 4 for idx, word in
                                   enumerate(word for word, count in word_counter.items()
                                             if count > config.word_count_th or (config.known_if_glove and word in word2vec_dict))}
         else:
             assert config.known_if_glove
             assert config.use_glove_for_unk
-            shared['word2idx'] = {word: idx + 2 for idx, word in
+            shared['word2idx'] = {word: idx + 4 for idx, word in
                                   enumerate(word for word, count in word_counter.items()
                                             if count > config.word_count_th and word not in word2vec_dict)}
-        shared['char2idx'] = {char: idx + 2 for idx, char in
+        shared['char2idx'] = {char: idx + 4 for idx, char in
                               enumerate(char for char, count in char_counter.items()
                                         if count > config.char_count_th)}
         NULL = "-NULL-"
         UNK = "-UNK-"
+        EOS = "</s>"
+        SOS = "--SOS--"
         shared['word2idx'][NULL] = 0
         shared['word2idx'][UNK] = 1
+        shared['word2idx'][SOS] = 2
+        shared['word2idx'][EOS] = 3
         shared['char2idx'][NULL] = 0
         shared['char2idx'][UNK] = 1
+        shared['char2idx'][SOS] = 2
+        shared['char2idx'][EOS] = 3
         json.dump({'word2idx': shared['word2idx'], 'char2idx': shared['char2idx']}, open(shared_path, 'w'))
     else:
         new_shared = json.load(open(shared_path, 'r'))
@@ -273,7 +280,7 @@ def get_squad_data_filter(config):
                 if len(xi[start[0]]) > config.sent_size_th:
                     return False
         else:
-            raise Exception()
+            raise Exception() 
         """
 
         return True
@@ -312,8 +319,9 @@ def update_config(config, data_sets):
     config.max_word_size = min(config.max_word_size, config.word_size_th)
 
     config.char_vocab_size = len(data_sets[0].shared['char2idx'])
-    config.word_emb_size = len(next(iter(data_sets[0].shared['word2vec'].values()))) # SET EMBEDDING SIZE FROM TRAIN DATA
-    config.word_vocab_size = len(data_sets[0].shared['word2idx']) # SET VOCAB SIZE FROM TRAIN DATA
+    config.word_emb_size = len(next(iter(data_sets[0].shared['word2vec'].values())))
+    config.word_vocab_size = len(data_sets[0].shared['word2idx'])
+    config.len_new_emb_mat = len(data_sets[0].shared['new_emb_mat'])
 
     if config.single:
         config.max_num_sents = 1
