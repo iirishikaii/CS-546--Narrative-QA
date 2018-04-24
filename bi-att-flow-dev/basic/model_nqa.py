@@ -239,8 +239,8 @@ class Model(object):
 
             # Embedding decoder/matrix
 
-            tgt_vocab_size = VW # hparam # FIXME: Obtain embeddings differently?
-            print(tgt_vocab_size)
+            tgt_vocab_size = config.len_new_emb_mat # hparam # FIXME: Obtain embeddings differently?
+            print("tgt vocab size: " + str(tgt_vocab_size))
             tgt_embedding_size = dw # hparam
             print(tgt_embedding_size)
 
