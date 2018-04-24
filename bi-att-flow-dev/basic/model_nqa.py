@@ -63,7 +63,7 @@ class Model(object):
         self.decoder_inputs = tf.placeholder('int32', [N, None], name='decoder_inputs') # [batch_size, max words]
         self.target_sequence_length = tf.placeholder(shape=(N,), dtype=tf.int32, name='target_sequence_length') # batch_size
         self.decoder_targets = tf.placeholder(shape=(None, None), dtype=tf.int32, name='decoder_targets') # [batch_size, max_decoder_time]
-        self.target_weights = tf.placeholder(shape=(None, None), dtype=tf.float32, name='target_weights') # [batch_size, max_decoder_time] # Same as loss mask
+        self.target_weights = tf.placeholder(shape=(None, None), dtype=tf.float32, name='target_weights') # [batch_size, max_decoder_time] # Same as loss mask # FIXME: Reuse loss mask
 
         # Define misc
         self.tensor_dict = {} # seems to be for keeping track of intermediate values during forward pass -- not super important maybe?
@@ -245,7 +245,7 @@ class Model(object):
             tgt_embedding_size = dw # hparam
             print(tgt_embedding_size)
 
-            embedding_decoder = word_emb_mat
+            embedding_decoder = word_emb_mat # FIXME: Use different one ideally
             # tf.Variable(
             #     tf.constant(0.0, shape=[tgt_vocab_size, tgt_embedding_size]), trainable=False, name="embedding_decoder"
             # )
@@ -254,7 +254,7 @@ class Model(object):
             decoder_emb_inp = tf.nn.embedding_lookup(embedding_decoder, self.decoder_inputs) # [batch_size, max words, embedding_size]
             print(decoder_emb_inp)
 
-            def decode(helper, scope, reuse=None, maximum_iterations=None):
+            def decode(helper, scope, reuse=None, maximum_iterations=None): # TODO: No need for a function
                 with tf.variable_scope(scope, reuse=reuse):
                     decoder_cell = BasicLSTMCell(d, state_is_tuple=True) # hparam
                     projection_layer = layers_core.Dense(
