@@ -245,7 +245,7 @@ class Model(object):
                         decoder_cell, helper, my_encoder_final_state,
                         output_layer=projection_layer) # decoder
 
-                    final_outputs, final_decoder_state, final_sequence_lengths = tf.contrib.seq2seq.dynamic_decode(
+                    final_outputs, _ ,_= tf.contrib.seq2seq.dynamic_decode(
                         decoder, output_time_major=False, impute_finished=True) # dynamic decoding
 
                     return final_outputs
@@ -464,9 +464,9 @@ class Model(object):
             for j, ansij in enumerate(ansi[0]):#answer with sos
                 if j == config.max_sent_size:
                     break
-                    each = _get_word(ansij)
-                    assert isinstance(each, int), each
-                    answer[i,j] = each
+                each = _get_word(ansij)
+                assert isinstance(each, int), each
+                answer[i,j] = each
             for k, ansik in enumerate(ansi[1]):#answer with eos
                 if j == config.max_sent_size:
                     break
