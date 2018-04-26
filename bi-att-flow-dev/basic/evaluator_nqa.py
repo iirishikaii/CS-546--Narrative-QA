@@ -465,12 +465,14 @@ class BleuEvaluator(Evaluator):
             self.na = model.na_prob
      #softmax on decoder logits train to get the probability distribution over the vocab.        
     def get_evaluation(self, sess, batch):
+        #decoder_logits_train is BxWxV , take max over V
         pred_dist = tf.nn.softmax(model.decoder_logits_train)
         #take max over the vocab to get the predicted words
         translation_corpus = tf.argmax(pred_dist, dimension = 2)
-        #reference corpus
+        #reference corpus  BxW
         gold_dist = model.decoder_target
-        reference_corpus = tf.argmax(gold_dist, dimension = 2)
+        reference_corpus = gold_dist
+        #reference_corpus = tf.argmax(gold_dist, dimension = 2)
         e = bleu.compute_bleu(reference_corpus, translation_corpus)
         return e
     
