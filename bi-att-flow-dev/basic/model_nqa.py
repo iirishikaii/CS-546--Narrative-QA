@@ -477,6 +477,19 @@ class Model(object):
 
         if supervised:
             assert np.sum(~(x_mask | ~wy)) == 0
+            
+        max_decoder_time = max(feed_dict[self.target_sequence_length])
+        feed_dict[self.decoder_inputs] = np.delete(feed_dict[self.decoder_inputs], np.s_[max_decoder_time::], 1)
+        feed_dict[self.decoder_targets] = np.delete(feed_dict[self.decoder_targets], np.s_[max_decoder_time::], 1)
+
+        print("decoder_inputs here:")
+        print(feed_dict[self.decoder_inputs])
+        print(feed_dict[self.decoder_inputs].shape)
+        print("decoder_targets here:")
+        print(feed_dict[self.decoder_targets])
+        print(feed_dict[self.decoder_targets].shape)
+        print("target_sequence_length here:")
+        print(feed_dict[self.target_sequence_length])
 
         return feed_dict
 

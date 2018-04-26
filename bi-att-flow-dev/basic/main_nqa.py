@@ -102,7 +102,9 @@ def _train(config):
         # batches and models should be of the same length
         global_step = sess.run(model.global_step) + 1  # +1 because all calculations are done after step
         get_summary = global_step % config.log_period == 0
+        print("TRAINER STEP STARTS!")
         loss, summary, train_op = trainer.step(sess, batches, get_summary=get_summary)
+        print("TRAINER STEP DONE!")
         if get_summary:
             graph_handler.add_summary(summary, global_step)
 
@@ -113,22 +115,22 @@ def _train(config):
         if not config.eval:
             continue
         # Occasional evaluation
-        if global_step % config.eval_period == 0:
-            num_steps = math.ceil(dev_data.num_examples / (config.batch_size * config.num_gpus))
-            if 0 < config.val_num_batches < num_steps:
-                num_steps = config.val_num_batches
-            e_train = evaluator.get_evaluation_from_batches(
-                sess, tqdm(train_data.get_multi_batches(config.batch_size, config.num_gpus, num_steps=num_steps), total=num_steps)
-            )
-            graph_handler.add_summaries(e_train.summaries, global_step)
-            e_dev = evaluator.get_evaluation_from_batches(
-                sess, tqdm(dev_data.get_multi_batches(config.batch_size, config.num_gpus, num_steps=num_steps), total=num_steps))
-            graph_handler.add_summaries(e_dev.summaries, global_step)
-
-            if config.dump_eval:
-                graph_handler.dump_eval(e_dev)
-            if config.dump_answer:
-                graph_handler.dump_answer(e_dev)
+        # if global_step % config.eval_period == 0:
+        #     num_steps = math.ceil(dev_data.num_examples / (config.batch_size * config.num_gpus))
+        #     if 0 < config.val_num_batches < num_steps:
+        #         num_steps = config.val_num_batches
+        #     e_train = evaluator.get_evaluation_from_batches(
+        #         sess, tqdm(train_data.get_multi_batches(config.batch_size, config.num_gpus, num_steps=num_steps), total=num_steps)
+        #     )
+        #     graph_handler.add_summaries(e_train.summaries, global_step)
+        #     e_dev = evaluator.get_evaluation_from_batches(
+        #         sess, tqdm(dev_data.get_multi_batches(config.batch_size, config.num_gpus, num_steps=num_steps), total=num_steps))
+        #     graph_handler.add_summaries(e_dev.summaries, global_step)
+        #
+        #     if config.dump_eval:
+        #         graph_handler.dump_eval(e_dev)
+        #     if config.dump_answer:
+        #         graph_handler.dump_answer(e_dev)
     if global_step % config.save_period != 0:
         graph_handler.save(sess, global_step=global_step)
 
