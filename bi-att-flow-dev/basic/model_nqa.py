@@ -468,7 +468,7 @@ class Model(object):
                 assert isinstance(each, int), each
                 answer[i,j] = each
             for k, ansik in enumerate(ansi[1]):#answer with eos
-                if j == config.max_sent_size:
+                if k == config.max_sent_size:
                     break
                 each = _get_word(ansik)
                 assert isinstance(each, int), each
