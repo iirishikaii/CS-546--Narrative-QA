@@ -2,7 +2,7 @@ import tensorflow as tf
 from tensorflow.python.ops.rnn import dynamic_rnn as _dynamic_rnn, \
     bidirectional_dynamic_rnn as _bidirectional_dynamic_rnn
 
-from my.tensorflow import flatten, reconstruct
+from my.tensorflow import my_flatten, my_flatten_2, flatten, reconstruct
 
 
 def dynamic_rnn(cell, inputs, sequence_length=None, initial_state=None,
@@ -41,6 +41,23 @@ def bw_dynamic_rnn(cell, inputs, sequence_length=None, initial_state=None,
     outputs = reconstruct(flat_outputs, inputs, 2)
     return outputs, final_state
 
+
+def my_bidirectional_dynamic_rnn(cell_fw, cell_bw, inputs, sequence_length=None,
+                              initial_state_fw=None, initial_state_bw=None,
+                              dtype=None, parallel_iterations=None,
+                              swap_memory=False, time_major=False, scope=None):
+    assert not time_major
+
+    flat_inputs = my_flatten(inputs)
+    flat_len = None if sequence_length is None else tf.cast(my_flatten_2(sequence_length), 'int64')
+
+    (_, _), final_state = \
+        _bidirectional_dynamic_rnn(cell_fw, cell_bw, flat_inputs, sequence_length=flat_len,
+                                   initial_state_fw=initial_state_fw, initial_state_bw=initial_state_bw,
+                                   dtype=dtype, parallel_iterations=parallel_iterations, swap_memory=swap_memory,
+                                   time_major=time_major, scope=scope)
+
+    return final_state
 
 def bidirectional_dynamic_rnn(cell_fw, cell_bw, inputs, sequence_length=None,
                               initial_state_fw=None, initial_state_bw=None,

@@ -9,7 +9,7 @@ from tensorflow.contrib.seq2seq import BasicDecoder
 from basic.read_data_nqa import DataSet
 from my.tensorflow import get_initializer
 from my.tensorflow.nn import softsel, get_logits, highway_network, multi_conv1d
-from my.tensorflow.rnn import bidirectional_dynamic_rnn
+from my.tensorflow.rnn import bidirectional_dynamic_rnn, my_bidirectional_dynamic_rnn
 from my.tensorflow.rnn_cell import SwitchableDropoutWrapper, AttentionCell
 from tensorflow.python.layers import core as layers_core
 from my.tensorflow import flatten
@@ -211,60 +211,42 @@ class Model(object):
             (fw_g0, bw_g0), _ = bidirectional_dynamic_rnn(first_cell_fw, first_cell_bw, p0, x_len, dtype='float', scope='g0')  # [N, M, JX, 2d]
             g0 = tf.concat(axis=3, values=[fw_g0, bw_g0])
 
-            # (fw_g1, _), (my_fw_final_state, _) = bidirectional_dynamic_rnn(second_cell_fw, second_cell_bw, g0, x_len, dtype='float', scope='g1')  # [N, M, JX, 2d]
-            # g1 = tf.concat(axis=3, values=[fw_g1, bw_g1]) # g1 seems to be M in paper
-            # FIXME: Concatenate my_fw_final_state and my_bw_final_state
+            (fw_g1, bw_g1), _ = bidirectional_dynamic_rnn(second_cell_fw, second_cell_bw, g0, x_len, dtype='float', scope='g1')  # [N, M, JX, 2d]
+            g1 = tf.concat(axis=3, values=[fw_g1, bw_g1]) # g1 seems to be M in paper
 
-            flat_g0 = flatten(g0, 2)  # [-1, J, d]
-            flat_x_len = None if x_len is None else tf.cast(flatten(x_len, 0), 'int64')
+            my_cell_fw = BasicLSTMCell(d, state_is_tuple=True)
+            my_cell_fw_d = SwitchableDropoutWrapper(my_cell_fw, self.is_train, input_keep_prob=config.input_keep_prob)
+            my_cell_bw = BasicLSTMCell(d, state_is_tuple=True)
+            my_cell_bw_d = SwitchableDropoutWrapper(my_cell_bw, self.is_train, input_keep_prob=config.input_keep_prob)
 
-            _, my_fw_final_state = tf.nn.dynamic_rnn(
-                cell = second_cell_fw,
-                inputs = flat_g0,
-                sequence_length = flat_x_len,
-                initial_state=None,
-                dtype='float',
-                parallel_iterations=None,
-                swap_memory=False,
-                time_major=False,
-                scope='my_fw_final_state'
-            ) # FIXME: Replace with bi-rnn
+            (my_fw_final_state, my_bw_final_state) = my_bidirectional_dynamic_rnn(my_cell_fw_d, my_cell_bw_d, g1, x_len, dtype='float', scope='my_g2')  # [N, M, JX, 2d]
 
-            # print(tf.shape(my_fw_final_state)) # Tensor("model_0/main/Shape_14:0", shape=(3,), dtype=int32, device=/device:GPU:0)
-            # print(my_fw_final_state) # LSTMStateTuple(c=<tf.Tensor 'model_0/main/g1/fw/fw/while/Exit_2:0' shape=(?, 100) dtype=float32>, h=<tf.Tensor 'model_0/main/g1/fw/fw/while/Exit_3:0' shape=(?, 100) dtype=float32>)
-
-            # For now go with my_fw_final_state only
+            my_encoder_final_state_c = tf.concat(values = (my_fw_final_state.c, my_bw_final_state.c), axis = 1, name = "my_encoder_final_state_c")
+            my_encoder_final_state_h = tf.concat(values = (my_fw_final_state.h, my_bw_final_state.h), axis = 1, name = "my_encoder_final_state_h")
+            my_encoder_final_state = tf.contrib.rnn.LSTMStateTuple(c = my_encoder_final_state_c, h = my_encoder_final_state_h)
 
             # Decoder embedding
 
             # Embedding decoder/matrix
 
             tgt_vocab_size = config.len_new_emb_mat # hparam # FIXME: Obtain embeddings differently?
-            print("tgt vocab size: " + str(tgt_vocab_size))
             tgt_embedding_size = dw # hparam
-            print(tgt_embedding_size)
-
-            embedding_decoder = word_emb_mat
-            # tf.Variable(
-            #     tf.constant(0.0, shape=[tgt_vocab_size, tgt_embedding_size]), trainable=False, name="embedding_decoder"
-            # )
 
             # Look up embedding
-            decoder_emb_inp = tf.nn.embedding_lookup(embedding_decoder, self.decoder_inputs) # [batch_size, max words, embedding_size]
-            print(decoder_emb_inp)
+            decoder_emb_inp = tf.nn.embedding_lookup(word_emb_mat, self.decoder_inputs) # [batch_size, max words, embedding_size]
 
             def decode(helper, scope, reuse=None, maximum_iterations=None):
                 with tf.variable_scope(scope, reuse=reuse):
-                    decoder_cell = BasicLSTMCell(d, state_is_tuple=True) # hparam
+                    decoder_cell = BasicLSTMCell(2 * d, state_is_tuple=True) # hparam
                     projection_layer = layers_core.Dense(
                         tgt_vocab_size, use_bias=False) # hparam
 
                     decoder = tf.contrib.seq2seq.BasicDecoder(
-                        decoder_cell, helper, my_fw_final_state,
+                        decoder_cell, helper, my_encoder_final_state,
                         output_layer=projection_layer) # decoder
 
                     final_outputs, final_decoder_state, final_sequence_lengths = tf.contrib.seq2seq.dynamic_decode(
-                        decoder, output_time_major=False, impute_finished=True) # dynamic decoding # TODO: check tutorial for more
+                        decoder, output_time_major=False, impute_finished=True) # dynamic decoding
 
                     return final_outputs
 
@@ -276,7 +258,6 @@ class Model(object):
 
             decoder_logits_train = final_outputs.rnn_output
 
-            print(decoder_logits_train)
             self.decoder_logits_train = decoder_logits_train
 
     def _build_loss(self):
@@ -290,14 +271,13 @@ class Model(object):
 
         # Loss
         crossent = tf.nn.sparse_softmax_cross_entropy_with_logits(labels=self.decoder_targets, logits=self.decoder_logits_train)
-        print("dhruv and prashant are here: " + str(crossent.get_shape()))
         train_loss = tf.reduce_sum(tf.reduce_sum(crossent, axis=1) * loss_mask) / tf.cast(N, dtype=tf.float32)
 
         tf.add_to_collection('losses', train_loss)
 
         self.loss = tf.add_n(tf.get_collection('losses', scope=self.scope), name='loss') # loss for the entire batch ?
         tf.summary.scalar(self.loss.op.name, self.loss)
-        tf.add_to_collection('ema/scalar', self.loss) # FIXME: Needed?
+        tf.add_to_collection('ema/scalar', self.loss)
 
     def _build_ema(self):
         self.ema = tf.train.ExponentialMovingAverage(self.config.decay)
@@ -490,9 +470,9 @@ class Model(object):
             for k, ansik in enumerate(ansi[1]):#answer with eos
                 if j == config.max_sent_size:
                     break
-                    each = _get_word(ansik)
-                    assert isinstance(each, int), each
-                    answer_eos[i,k] = each
+                each = _get_word(ansik)
+                assert isinstance(each, int), each
+                answer_eos[i,k] = each
 
 
         if supervised:

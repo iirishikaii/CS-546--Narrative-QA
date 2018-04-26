@@ -127,6 +127,15 @@ def flatten(tensor, keep):
     flat = tf.reshape(tensor, out_shape)
     return flat
 
+def my_flatten(tensor):
+    fixed_shape = tensor.get_shape().as_list()
+    left = reduce(mul, [fixed_shape[i] or tf.shape(tensor)[i] for i in [1,2]])
+    out_shape = [fixed_shape[i] or tf.shape(tensor)[i] for i in [0]] + [left] + [fixed_shape[i] or tf.shape(tensor)[i] for i in [3]]
+    flat = tf.reshape(tensor, out_shape)
+    return flat
+
+def my_flatten_2(tensor):
+    return tf.reduce_sum(tensor, axis=1)
 
 def reconstruct(tensor, ref, keep):
     ref_shape = ref.get_shape().as_list()
