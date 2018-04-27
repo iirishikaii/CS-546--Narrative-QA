@@ -9,7 +9,7 @@ import tensorflow as tf
 from tqdm import tqdm
 import numpy as np
 
-from basic.evaluator import ForwardEvaluator, MultiGPUF1Evaluator
+from basic.evaluator_nqa import ForwardEvaluator, MultiGPUF1Evaluator,BleuEvaluator
 from basic.graph_handler import GraphHandler
 from basic.model_nqa import get_multi_gpu_models
 from basic.trainer import MultiGPUTrainer
@@ -85,9 +85,9 @@ def _train(config):
     print("num params: {}".format(get_num_params()))
     #return
     trainer = MultiGPUTrainer(config, models)
-    # evaluator = MultiGPUF1Evaluator(config, models, tensor_dict=model.tensor_dict if config.vis else None) # FIXME: Put this back!
+    #evaluator = MultiGPUF1Evaluator(config, models, tensor_dict=model.tensor_dict if config.vis else None) # FIXME: Put this back!
     #BLEU evaluator
-    #evaluator = BleuEvaluator(config, models, tensor_dict = model.tensor_dict if config.vis else None)
+    evaluator = BleuEvaluator(config, model, tensor_dict = model.tensor_dict if config.vis else None)
     graph_handler = GraphHandler(config, model)  # controls all tensors and variables in the graph, including loading /saving
 
     # Variables
@@ -105,8 +105,8 @@ def _train(config):
         print("TRAINER STEP STARTS!")
         loss, summary, train_op = trainer.step(sess, batches, get_summary=get_summary)
         print("TRAINER STEP DONE!")
-        if get_summary:
-            graph_handler.add_summary(summary, global_step)
+        #if get_summary:
+        #    graph_handler.add_summary(summary, global_step)
 
         # occasional saving
         if global_step % config.save_period == 0:
@@ -115,22 +115,23 @@ def _train(config):
         if not config.eval:
             continue
         # Occasional evaluation
-        # if global_step % config.eval_period == 0:
-        #     num_steps = math.ceil(dev_data.num_examples / (config.batch_size * config.num_gpus))
-        #     if 0 < config.val_num_batches < num_steps:
-        #         num_steps = config.val_num_batches
-        #     e_train = evaluator.get_evaluation_from_batches(
-        #         sess, tqdm(train_data.get_multi_batches(config.batch_size, config.num_gpus, num_steps=num_steps), total=num_steps)
-        #     )
-        #     graph_handler.add_summaries(e_train.summaries, global_step)
-        #     e_dev = evaluator.get_evaluation_from_batches(
-        #         sess, tqdm(dev_data.get_multi_batches(config.batch_size, config.num_gpus, num_steps=num_steps), total=num_steps))
-        #     graph_handler.add_summaries(e_dev.summaries, global_step)
-        #
-        #     if config.dump_eval:
-        #         graph_handler.dump_eval(e_dev)
-        #     if config.dump_answer:
-        #         graph_handler.dump_answer(e_dev)
+        if global_step % config.eval_period == 0:
+             num_steps = math.ceil(dev_data.num_examples / (config.batch_size * config.num_gpus))
+             if 0 < config.val_num_batches < num_steps:
+                 num_steps = config.val_num_batches
+             e_train = evaluator.get_evaluation_from_batches(
+                 sess, tqdm(train_data.get_multi_batches(config.batch_size, config.num_gpus, num_steps=num_steps), total=num_steps)
+             )
+             graph_handler.add_summaries(e_train.summaries, global_step)
+             e_dev = evaluator.get_evaluation_from_batches(
+                 sess, tqdm(dev_data.get_multi_batches(config.batch_size, config.num_gpus, num_steps=num_steps), total=num_steps))
+             graph_handler.add_summaries(e_dev.summaries, global_step)
+
+             if config.dump_eval:
+                 graph_handler.dump_eval(e_dev)
+             if config.dump_answer:
+                 graph_handler.dump_answer(e_dev)
+        return
     if global_step % config.save_period != 0:
         graph_handler.save(sess, global_step=global_step)
 
@@ -151,9 +152,9 @@ def _test(config):
     pprint(config.__flags, indent=2)
     models = get_multi_gpu_models(config)
     model = models[0]
-    evaluator = MultiGPUF1Evaluator(config, models, tensor_dict=models[0].tensor_dict if config.vis else None)
+    #evaluator = MultiGPUF1Evaluator(config, models, tensor_dict=models[0].tensor_dict if config.vis else None)
     #BLEU evaluator
-    #evaluator = BleuEvaluator(config, models, tensor_dict = model.tensor_dict if config.vis else None)
+    evaluator = BleuEvaluator(config, model, tensor_dict = model.tensor_dict if config.vis else None)
     graph_handler = GraphHandler(config, model)
 
     sess = tf.Session(config=tf.ConfigProto(allow_soft_placement=True))

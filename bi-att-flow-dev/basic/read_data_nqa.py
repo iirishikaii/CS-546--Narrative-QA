@@ -107,7 +107,6 @@ class DataSet(object):
                     shared_key = key[1:]
                     shared_batch_data[shared_key] = [index_nqa(self.shared[shared_key], each) for each in val]
             batch_data.update(shared_batch_data)
-            print ("dhruv len batch new_emb_mat",)
 
             batch_ds = DataSet(batch_data, self.data_type, shared=self.shared)
             yield batch_idxs, batch_ds
@@ -208,11 +207,15 @@ def read_data(config, data_type, ref, data_filter=None):
         shared['char2idx'][UNK] = 1
         shared['char2idx'][SOS] = 2
         shared['char2idx'][EOS] = 3
+        shared['idx2word'] = {id: word for word, id in shared['word2idx'].items()}
         json.dump({'word2idx': shared['word2idx'], 'char2idx': shared['char2idx']}, open(shared_path, 'w'))
     else:
         new_shared = json.load(open(shared_path, 'r'))
         for key, val in new_shared.items():
             shared[key] = val
+            if key == 'idx2word':
+                id2word_dict=shared['idx2word']
+                shared['idx2word']={int(id):word for id,word in id2word_dict.items()}
 
     if config.use_glove_for_unk:
         # create new word2idx and word2vec
@@ -226,6 +229,11 @@ def read_data(config, data_type, ref, data_filter=None):
         # print("{}/{} unique words have corresponding glove vectors.".format(len(idx2vec_dict), len(word2idx_dict)))
         new_emb_mat = np.array([idx2vec_dict[idx] for idx in range(len(idx2vec_dict))], dtype='float32')
         shared['new_emb_mat'] = new_emb_mat
+        if not ref:
+            shared['idx2word'].update({id+len(shared['word2idx']):word for word,id in shared['new_word2idx'].items()})
+            data_sh=json.load(open(shared_path))
+            data_sh.update({'idx2word':shared['idx2word']})
+            json.dump(data_sh, open(shared_path, 'w'))
 
     data_set = DataSet(data, data_type, shared=shared, valid_idxs=valid_idxs)
     return data_set

@@ -73,6 +73,9 @@ class Model(object):
         self.var_list = None
         self.na_prob = None
         self.decoder_logits_train = None
+        self.translations = None
+        self.tgt_sos_id = 2
+        self.tgt_eos_id = 3
 
         # Loss outputs
         self.loss = None
@@ -229,7 +232,7 @@ class Model(object):
 
             # Embedding decoder/matrix
 
-            tgt_vocab_size = config.len_new_emb_mat # hparam # FIXME: Obtain embeddings differently?
+            tgt_vocab_size = VW+config.len_new_emb_mat # hparam # FIXME: Obtain embeddings differently?
             tgt_embedding_size = dw # hparam
 
             # Look up embedding
@@ -251,14 +254,19 @@ class Model(object):
                     return final_outputs
 
             # Decoder
-            training_helper = tf.contrib.seq2seq.TrainingHelper(
-                decoder_emb_inp, self.target_sequence_length, time_major=False) # helper
+            if config.mode == 'train': #TODO:doesnt seem to be correct to use this variable for dev
+                training_helper = tf.contrib.seq2seq.TrainingHelper(decoder_emb_inp, self.target_sequence_length,
+                                                           time_major=False)
+                final_outputs = decode(helper=training_helper, scope="HAHA", reuse=None)
+                self.decoder_logits_train = final_outputs.rnn_output
+            else:
+                training_helper = tf.contrib.seq2seq.GreedyEmbeddingHelper(word_emb_mat, tf.fill([N], self.tgt_sos_id),
+                                                                  self.tgt_eos_id)
+                final_outputs_test= decode(helper=training_helper, scope="HAHA", reuse=True)
+                self.translations = final_outputs_test.sample_id
+            #decoder_logits_train = final_outputs.rnn_output
+            #self.decoder_logits_train = decoder_logits_train
 
-            final_outputs= decode(helper=training_helper, scope="HAHA", reuse=None)
-
-            decoder_logits_train = final_outputs.rnn_output
-
-            self.decoder_logits_train = decoder_logits_train
 
     def _build_loss(self):
         config = self.config

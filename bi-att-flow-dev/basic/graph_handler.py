@@ -5,7 +5,7 @@ import os
 
 import tensorflow as tf
 
-from basic.evaluator import Evaluation, F1Evaluation
+from basic.evaluator_nqa import Evaluation, F1Evaluation
 from my.utils import short_floats
 
 import pickle

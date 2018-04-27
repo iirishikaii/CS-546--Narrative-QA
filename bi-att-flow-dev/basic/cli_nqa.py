@@ -34,7 +34,7 @@ flags.DEFINE_bool("na", False, "Enable no answer strategy and learn bias? [False
 flags.DEFINE_float("th", 0.5, "Threshold [0.5]")
 
 # Training / test parameters
-flags.DEFINE_integer("batch_size", 60, "Batch size [60]")
+flags.DEFINE_integer("batch_size", 6, "Batch size [60]")
 flags.DEFINE_integer("val_num_batches", 100, "validation num batches [100]")
 flags.DEFINE_integer("test_num_batches", 0, "test num batches [0]")
 flags.DEFINE_integer("num_epochs", 12, "Total number of epochs for training [12]")
@@ -70,7 +70,7 @@ flags.DEFINE_integer("max_to_keep", 20, "Max recent saves to keep [20]")
 flags.DEFINE_bool("dump_eval", True, "dump eval? [True]")
 flags.DEFINE_bool("dump_answer", True, "dump answer? [True]")
 flags.DEFINE_bool("vis", False, "output visualization numbers? [False]")
-flags.DEFINE_bool("dump_pickle", True, "Dump pickle instead of json? [True]")
+flags.DEFINE_bool("dump_pickle", False, "Dump pickle instead of json? [True]")
 flags.DEFINE_float("decay", 0.9, "Exponential moving average decay for logging values [0.9]")
 
 # Thresholds for speed and less memory usage
