@@ -136,7 +136,6 @@ class Model(object):
                         word_emb_mat = tf.get_variable("word_emb_mat", shape=[VW, dw], dtype='float')
                     if config.use_glove_for_unk:
                         word_emb_mat = tf.concat(axis=0, values=[word_emb_mat, self.new_emb_mat])
-
                 with tf.name_scope("word"):
                     Ax = tf.nn.embedding_lookup(word_emb_mat, self.x)  # [N, M, JX, d] i.e. [batch size, max sentences, max words, embedding size]
                     Aq = tf.nn.embedding_lookup(word_emb_mat, self.q)  # [N, JQ, d] i.e. [batch size, max words, embedding size]
@@ -232,7 +231,8 @@ class Model(object):
 
             # Embedding decoder/matrix
 
-            tgt_vocab_size = VW+config.len_new_emb_mat # hparam # FIXME: Obtain embeddings differently?
+            tgt_vocab_size = config.len_new_emb_mat # hparam # FIXME: Obtain embeddings differently?
+            print("length is",config.len_new_emb_mat)
             tgt_embedding_size = dw # hparam
 
             # Look up embedding
@@ -249,7 +249,7 @@ class Model(object):
                         output_layer=projection_layer) # decoder
 
                     final_outputs, _ ,_= tf.contrib.seq2seq.dynamic_decode(
-                        decoder, output_time_major=False, impute_finished=True) # dynamic decoding
+                        decoder, output_time_major=False, impute_finished=True,maximum_iterations=maximum_iterations) # dynamic decoding
 
                     return final_outputs
 
@@ -258,12 +258,13 @@ class Model(object):
                 training_helper = tf.contrib.seq2seq.TrainingHelper(decoder_emb_inp, self.target_sequence_length,
                                                            time_major=False)
                 final_outputs = decode(helper=training_helper, scope="HAHA", reuse=None)
-                self.decoder_logits_train = final_outputs.rnn_output
+
             else:
                 training_helper = tf.contrib.seq2seq.GreedyEmbeddingHelper(word_emb_mat, tf.fill([N], self.tgt_sos_id),
-                                                                  self.tgt_eos_id)
-                final_outputs_test= decode(helper=training_helper, scope="HAHA", reuse=True)
-                self.translations = final_outputs_test.sample_id
+                                                                                                 self.tgt_eos_id)
+                final_outputs= decode(helper=training_helper, scope="HAHA", reuse=None,maximum_iterations=100)
+                #self.translations = final_outputs_test.sample_id
+            self.decoder_logits_train = final_outputs.rnn_output
             #decoder_logits_train = final_outputs.rnn_output
             #self.decoder_logits_train = decoder_logits_train
 
@@ -278,8 +279,12 @@ class Model(object):
         loss_mask = tf.reduce_max(tf.cast(self.q_mask, 'float'), 1) # [N]
 
         # Loss
-        crossent = tf.nn.sparse_softmax_cross_entropy_with_logits(labels=self.decoder_targets, logits=self.decoder_logits_train)
-        train_loss = tf.reduce_sum(tf.reduce_sum(crossent, axis=1) * loss_mask) / tf.cast(N, dtype=tf.float32)
+        #TODO: cannot calulate loss for test since max iteration cannot be matched to test length
+        if config.mode == 'train':
+            crossent = tf.nn.sparse_softmax_cross_entropy_with_logits(labels=self.decoder_targets, logits=self.decoder_logits_train)
+            train_loss = tf.reduce_sum(tf.reduce_sum(crossent, axis=1) * loss_mask) / tf.cast(N, dtype=tf.float32)
+        else:
+            train_loss=tf.zeros([1],tf.int32)
 
         tf.add_to_collection('losses', train_loss)
 
@@ -307,7 +312,7 @@ class Model(object):
         ema = self.var_ema
         ema_op = ema.apply(tf.trainable_variables())
         with tf.control_dependencies([ema_op]):
-            self.loss = tf.identity(self.loss)
+                self.loss = tf.identity(self.loss)
 
     def get_loss(self):
         return self.loss

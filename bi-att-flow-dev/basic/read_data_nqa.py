@@ -208,7 +208,24 @@ def read_data(config, data_type, ref, data_filter=None):
         shared['char2idx'][SOS] = 2
         shared['char2idx'][EOS] = 3
         shared['idx2word'] = {id: word for word, id in shared['word2idx'].items()}
-        json.dump({'word2idx': shared['word2idx'], 'char2idx': shared['char2idx']}, open(shared_path, 'w'))
+
+        #only consider the word2id/vec dict of train
+        if config.use_glove_for_unk:
+            # create new word2idx and word2vec
+            word2vec_dict = shared['lower_word2vec'] if config.lower_word else shared['word2vec']
+            new_word2idx_dict = {word: idx for idx, word in
+                                 enumerate(word for word in word2vec_dict.keys() if word not in shared['word2idx'])}
+            shared['new_word2idx'] = new_word2idx_dict
+            offset = len(shared['word2idx'])
+            word2vec_dict = shared['lower_word2vec'] if config.lower_word else shared['word2vec']
+            new_word2idx_dict = shared['new_word2idx']
+            idx2vec_dict = {idx: word2vec_dict[word] for word, idx in new_word2idx_dict.items()}
+            # print("{}/{} unique words have corresponding glove vectors.".format(len(idx2vec_dict), len(word2idx_dict)))
+            new_emb_mat = np.array([idx2vec_dict[idx] for idx in range(len(idx2vec_dict))], dtype='float32')
+            shared['new_emb_mat'] = new_emb_mat
+            shared['idx2word'].update({id + len(shared['word2idx']): word for word, id in shared['new_word2idx'].items()})
+        json.dump({'word2idx': shared['word2idx'], 'char2idx': shared['char2idx'],'idx2word': shared['idx2word'],
+                   'new_word2idx':shared['new_word2idx'],'new_emb_mat':shared['new_emb_mat'].tolist()}, open(shared_path, 'w'))
     else:
         new_shared = json.load(open(shared_path, 'r'))
         for key, val in new_shared.items():
@@ -216,7 +233,9 @@ def read_data(config, data_type, ref, data_filter=None):
             if key == 'idx2word':
                 id2word_dict=shared['idx2word']
                 shared['idx2word']={int(id):word for id,word in id2word_dict.items()}
-
+            if key == 'new_emb_mat':
+                shared['new_emb_mat']=np.array(shared['new_emb_mat'])
+    '''
     if config.use_glove_for_unk:
         # create new word2idx and word2vec
         word2vec_dict = shared['lower_word2vec'] if config.lower_word else shared['word2vec']
@@ -229,11 +248,15 @@ def read_data(config, data_type, ref, data_filter=None):
         # print("{}/{} unique words have corresponding glove vectors.".format(len(idx2vec_dict), len(word2idx_dict)))
         new_emb_mat = np.array([idx2vec_dict[idx] for idx in range(len(idx2vec_dict))], dtype='float32')
         shared['new_emb_mat'] = new_emb_mat
+        shared_path_new = os.path.join(config.out_dir, "shared_{}.json".format(data_type))
+        json.dump({'new_word2idx':shared['new_word2idx']},open(shared_path_new,'w'))
         if not ref:
+            shared['train_new_emb_mat'] = new_emb_mat
             shared['idx2word'].update({id+len(shared['word2idx']):word for word,id in shared['new_word2idx'].items()})
             data_sh=json.load(open(shared_path))
-            data_sh.update({'idx2word':shared['idx2word']})
+            data_sh.update({'idx2word':shared['idx2word'], 'train_new_emb_mat':shared['train_new_emb_mat'].tolist()})
             json.dump(data_sh, open(shared_path, 'w'))
+    '''
 
     data_set = DataSet(data, data_type, shared=shared, valid_idxs=valid_idxs)
     return data_set
@@ -329,7 +352,7 @@ def update_config(config, data_sets):
     config.char_vocab_size = len(data_sets[0].shared['char2idx'])
     config.word_emb_size = len(next(iter(data_sets[0].shared['word2vec'].values())))
     config.word_vocab_size = len(data_sets[0].shared['word2idx'])
-    config.len_new_emb_mat = len(data_sets[0].shared['new_emb_mat'])
+    config.len_new_emb_mat = len(data_sets[0].shared['idx2word'])
 
     if config.single:
         config.max_num_sents = 1

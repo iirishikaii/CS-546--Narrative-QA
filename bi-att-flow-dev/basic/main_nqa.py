@@ -141,13 +141,14 @@ def _test(config):
     update_config(config, [test_data])
 
     _config_debug(config)
-
+    '''
     if config.use_glove_for_unk:
         word2vec_dict = test_data.shared['lower_word2vec'] if config.lower_word else test_data.shared['word2vec']
         new_word2idx_dict = test_data.shared['new_word2idx']
         idx2vec_dict = {idx: word2vec_dict[word] for word, idx in new_word2idx_dict.items()}
         new_emb_mat = np.array([idx2vec_dict[idx] for idx in range(len(idx2vec_dict))], dtype='float32')
         config.new_emb_mat = new_emb_mat
+    '''
 
     pprint(config.__flags, indent=2)
     models = get_multi_gpu_models(config)
@@ -189,13 +190,14 @@ def _forward(config):
     update_config(config, [test_data])
 
     _config_debug(config)
-
+    '''
     if config.use_glove_for_unk:
         word2vec_dict = test_data.shared['lower_word2vec'] if config.lower_word else test_data.shared['word2vec']
         new_word2idx_dict = test_data.shared['new_word2idx']
         idx2vec_dict = {idx: word2vec_dict[word] for word, idx in new_word2idx_dict.items()}
         new_emb_mat = np.array([idx2vec_dict[idx] for idx in range(len(idx2vec_dict))], dtype='float32')
         config.new_emb_mat = new_emb_mat
+    '''
 
     pprint(config.__flags, indent=2)
     models = get_multi_gpu_models(config)

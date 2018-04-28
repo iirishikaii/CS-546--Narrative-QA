@@ -485,6 +485,9 @@ class BleuEvaluation(AccuracyEvaluation):
         self.summaries = [loss_summary]
         #self.summaries.append(f1_summary)
 
+    def __repr__(self):
+        return "{} step {}: accuracy={}".format(self.data_type, self.global_step, self.bleu_score)
+
     def __add__(self, other):
         if other == 0:
             return self
@@ -519,17 +522,17 @@ class BleuEvaluator(Evaluator):
         #take max over the vocab to get the predicted words
         translation_corpus = tf.argmax(pred_dist, dimension = 2)
         #reference corpus  BxW
-        #self.model.decoder_logits_train = tf.Print(self.model.decoder_logits_train, [tf.shape(self.model.decoder_logits_train)],message="decoder logits output shape", summarize=20, first_n=7)
-        #translation_corpus=tf.Print(translation_corpus,[tf.shape(translation_corpus)],message="decoder translation shape",summarize=20,first_n=7)
         global_step, decoder_logits_train, decoder_targets, loss = sess.run(
             [self.global_step, translation_corpus, self.model.decoder_targets, self.loss],feed_dict=feed_dict)
         reference_corpus = decoder_targets
+        if self.config.mode == 'test':
+            loss =0
         #reference_corpus = tf.argmax(gold_dist, dimension = 2)
         reference_corpus=id2word_translate(reference_corpus,data_set.shared['idx2word'])
         decoder_logits_train=id2word_translate(decoder_logits_train,data_set.shared['idx2word'])
         #TODO:Score will be bloated because of paddings at the end
-        bleu_score = compute_bleu(reference_corpus, decoder_logits_train) #TODO: something wrong here, sometimes returning multiple bleu scores for a single answer
-        #print("bleu score",bleu_score)
+        bleu_score = compute_bleu([reference_corpus.tolist()], decoder_logits_train) #TODO: something wrong here, sometimes returning multiple bleu scores for a single answer
+        #("bleu score",bleu_score)
         e = BleuEvaluation(data_set.data_type, int(global_step), idxs, decoder_logits_train.tolist(), loss,list(bleu_score),
                               data_set.shared['idx2word'], tensor_dict=self.tensor_dict)
         return e
@@ -558,7 +561,8 @@ def _get_ngrams(segment, max_order):
       ngram_counts[ngram] += 1
   return ngram_counts
 
-def compute_bleu(reference_corpus_old, translation_corpus, max_order=4,
+
+def compute_bleu(reference_corpus, translation_corpus, max_order=4,
                  smooth=False):
   """Computes BLEU score of translated segments against one or more references.
   Args:
@@ -576,16 +580,10 @@ def compute_bleu(reference_corpus_old, translation_corpus, max_order=4,
   possible_matches_by_order = [0] * max_order
   reference_length = 0
   translation_length = 0
-  reference_corpus = list()
-  reference_corpus.append(reference_corpus_old)
-  #print("reference corpus")
-  #print(reference_corpus)
-  #print("translation corpus")
-  #print(trans_corp)
+  #print ("refernce corpus",reference_corpus)
+  #print ("translation corpus",translation_corpus)
   for (references, translation) in zip(reference_corpus,
                                        translation_corpus):
-    print("ref length: ", len(references))
-    print("translation length: ", len(translation))
     reference_length += min(len(r) for r in references)
     translation_length += len(translation)
 
@@ -619,6 +617,8 @@ def compute_bleu(reference_corpus_old, translation_corpus, max_order=4,
   else:
     geo_mean = 0
 
+  if reference_length == 0:
+      reference_length=1
   ratio = float(translation_length) / reference_length
 
   if ratio > 1.0:
