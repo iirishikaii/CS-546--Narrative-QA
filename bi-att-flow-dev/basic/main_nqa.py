@@ -131,7 +131,7 @@ def _train(config):
                  graph_handler.dump_eval(e_dev)
              if config.dump_answer:
                  graph_handler.dump_answer(e_dev)
-        return
+        
     if global_step % config.save_period != 0:
         graph_handler.save(sess, global_step=global_step)
 
