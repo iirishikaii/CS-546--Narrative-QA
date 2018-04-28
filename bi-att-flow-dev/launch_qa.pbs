@@ -72,7 +72,7 @@ let BATCH_SIZE=${PBS_NUM_NODES}*${BATCH_SIZE_PER_WORKER}
 #--checkpoint_dir checkpoint_dir${UNIQUE_CHECKPOINT_NAME}"
 # --server_protocol grpc+mpi \
 # --server_protocol grpc \
-RUN_CMD ="bwpy-environ -- \
+RUN_CMD="bwpy-environ -- \
 python3 -m basic.cli_nqa --mode train --noload"
 
 mkdir -p logs
