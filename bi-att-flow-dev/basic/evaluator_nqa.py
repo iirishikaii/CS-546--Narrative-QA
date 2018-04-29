@@ -480,6 +480,7 @@ class BleuEvaluation(AccuracyEvaluation):
         self.dict['loss'] = loss
         #self.dict['correct'] = correct
         #self.dict['acc'] = self.acc
+        #print("eval loss type",type(self.loss))
         loss_summary = tf.Summary(value=[tf.Summary.Value(tag='{}/loss'.format(data_type), simple_value=self.loss)])
         #acc_summary = tf.Summary(value=[tf.Summary.Value(tag='{}/acc'.format(data_type), simple_value=self.acc)])
         self.summaries = [loss_summary]
@@ -533,7 +534,7 @@ class BleuEvaluator(Evaluator):
         #TODO:Score will be bloated because of paddings at the end
         bleu_score = compute_bleu([reference_corpus.tolist()], decoder_logits_train) #TODO: something wrong here, sometimes returning multiple bleu scores for a single answer
         #("bleu score",bleu_score)
-        e = BleuEvaluation(data_set.data_type, int(global_step), idxs, decoder_logits_train.tolist(), loss,list(bleu_score),
+        e = BleuEvaluation(data_set.data_type, int(global_step), idxs, decoder_logits_train.tolist(), float(loss),list(bleu_score),
                               data_set.shared['idx2word'], tensor_dict=self.tensor_dict)
         return e
 
