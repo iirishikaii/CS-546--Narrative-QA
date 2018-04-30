@@ -105,8 +105,9 @@ def _train(config):
         print("TRAINER STEP STARTS!")
         loss, summary, train_op = trainer.step(sess, batches, get_summary=get_summary)
         print("TRAINER STEP DONE!")
-        #if get_summary:
-        #    graph_handler.add_summary(summary, global_step)
+        print("BATCH TRAIN LOSS:", loss)
+        if get_summary:
+           graph_handler.add_summary(summary, global_step)
 
         # occasional saving
         if global_step % config.save_period == 0:
@@ -131,7 +132,7 @@ def _train(config):
                  graph_handler.dump_eval(e_dev)
              if config.dump_answer:
                  graph_handler.dump_answer(e_dev)
-        
+
     if global_step % config.save_period != 0:
         graph_handler.save(sess, global_step=global_step)
 
