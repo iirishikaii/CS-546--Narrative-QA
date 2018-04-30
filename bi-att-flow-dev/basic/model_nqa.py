@@ -63,6 +63,7 @@ class Model(object):
         self.decoder_inputs = tf.placeholder('int32', [N, None], name='decoder_inputs') # [batch_size, max words]
         self.target_sequence_length = tf.placeholder(shape=(N,), dtype=tf.int32, name='target_sequence_length') # batch_size
         self.decoder_targets = tf.placeholder(shape=(None, None), dtype=tf.int32, name='decoder_targets') # [batch_size, max_decoder_time]
+        self.target_weights = tf.placeholder(shape=(None, None), dtype=tf.float32, name='target_weights') # [batch_size, max_decoder_time]
 
         # Define misc
         self.tensor_dict = {} # seems to be for keeping track of intermediate values during forward pass -- not super important maybe?
@@ -276,13 +277,13 @@ class Model(object):
         JQ = tf.shape(self.q)[1]
         N = config.batch_size
 
-        loss_mask = tf.reduce_max(tf.cast(self.q_mask, 'float'), 1) # [N]
+        # loss_mask = tf.reduce_max(tf.cast(self.q_mask, 'float'), 1) # [N]
 
         # Loss
         #TODO: cannot calulate loss for test since max iteration cannot be matched to test length
         if config.mode == 'train':
             crossent = tf.nn.sparse_softmax_cross_entropy_with_logits(labels=self.decoder_targets, logits=self.decoder_logits_train)
-            train_loss = tf.reduce_sum(tf.reduce_sum(crossent, axis=1) * loss_mask) / tf.cast(N, dtype=tf.float32)
+            train_loss = (tf.reduce_sum(crossent * self.target_weights) / tf.cast(N, dtype=tf.float32))
         else:
             train_loss=tf.zeros([1],tf.int32)
 
@@ -363,6 +364,7 @@ class Model(object):
         q_mask = np.zeros([N, JQ], dtype='bool')
         answer = np.zeros([N, JX], dtype='int32')
         answer_eos = np.zeros([N, JX], dtype='int32')
+        target_weights = np.zeros([N, JX], dtype='float32')
 
         feed_dict[self.x] = x
         feed_dict[self.x_mask] = x_mask
@@ -373,6 +375,7 @@ class Model(object):
         feed_dict[self.is_train] = is_train
         feed_dict[self.decoder_inputs]=answer
         feed_dict[self.decoder_targets]=answer_eos
+        feed_dict[self.target_weights]=target_weights
         feed_dict[self.target_sequence_length]=batch.data['ans_len']
 
         if config.use_glove_for_unk:
@@ -490,7 +493,7 @@ class Model(object):
 
         if supervised:
             assert np.sum(~(x_mask | ~wy)) == 0
-            
+
         max_decoder_time = max(feed_dict[self.target_sequence_length])
         feed_dict[self.decoder_inputs] = np.delete(feed_dict[self.decoder_inputs], np.s_[max_decoder_time::], 1)
         feed_dict[self.decoder_targets] = np.delete(feed_dict[self.decoder_targets], np.s_[max_decoder_time::], 1)
@@ -503,6 +506,21 @@ class Model(object):
         print(feed_dict[self.decoder_targets].shape)
         print("target_sequence_length here:")
         print(feed_dict[self.target_sequence_length])
+
+        def get_target_weights(decoder_targets, padding_token):
+            def f(t, padding_token = padding_token):
+                if t == padding_token:
+                    return 0.0
+                else:
+                    return 1.0
+            f_vec = np.vectorize(f)
+            return f_vec(decoder_targets)
+
+        feed_dict[self.target_weights] = get_target_weights(feed_dict[self.decoder_targets], 0)
+
+        print("target_weights here:")
+        print(feed_dict[self.target_weights])
+        print(feed_dict[self.target_weights].shape)
 
         return feed_dict
 
