@@ -532,7 +532,7 @@ class BleuEvaluator(Evaluator):
         reference_corpus=id2word_translate(reference_corpus,data_set.shared['idx2word'])
         decoder_logits_train=id2word_translate(decoder_logits_train,data_set.shared['idx2word'])
         #TODO:Score will be bloated because of paddings at the end
-        bleu_score = compute_bleu([reference_corpus.tolist()], decoder_logits_train) #TODO: something wrong here, sometimes returning multiple bleu scores for a single answer
+        bleu_score = compute_bleu([reference_corpus.tolist()], decoder_logits_train)
         #("bleu score",bleu_score)
         e = BleuEvaluation(data_set.data_type, int(global_step), idxs, decoder_logits_train.tolist(), float(loss),list(bleu_score),
                               data_set.shared['idx2word'], tensor_dict=self.tensor_dict)

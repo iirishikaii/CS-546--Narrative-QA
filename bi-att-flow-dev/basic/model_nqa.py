@@ -233,7 +233,7 @@ class Model(object):
             # Embedding decoder/matrix
 
             tgt_vocab_size = config.len_new_emb_mat # hparam # FIXME: Obtain embeddings differently?
-           #print("length is",config.len_new_emb_mat)
+            #print("length is",config.len_new_emb_mat)
             tgt_embedding_size = dw # hparam
 
             # Look up embedding
@@ -263,7 +263,7 @@ class Model(object):
             else:
                 training_helper = tf.contrib.seq2seq.GreedyEmbeddingHelper(word_emb_mat, tf.fill([N], self.tgt_sos_id),
                                                                                                  self.tgt_eos_id)
-                final_outputs= decode(helper=training_helper, scope="HAHA", reuse=None,maximum_iterations=100)
+                final_outputs= decode(helper=training_helper, scope="HAHA", reuse=None,maximum_iterations=30)
                 #self.translations = final_outputs_test.sample_id
             self.decoder_logits_train = final_outputs.rnn_output
             #decoder_logits_train = final_outputs.rnn_output
@@ -365,6 +365,7 @@ class Model(object):
         answer = np.zeros([N, JX], dtype='int32')
         answer_eos = np.zeros([N, JX], dtype='int32')
         target_weights = np.zeros([N, JX], dtype='float32')
+        target_lengths = np.zeros([N], dtype='int32')
 
         feed_dict[self.x] = x
         feed_dict[self.x_mask] = x_mask
@@ -376,7 +377,7 @@ class Model(object):
         feed_dict[self.decoder_inputs]=answer
         feed_dict[self.decoder_targets]=answer_eos
         feed_dict[self.target_weights]=target_weights
-        feed_dict[self.target_sequence_length]=batch.data['ans_len']
+        feed_dict[self.target_sequence_length]=target_lengths
 
         if config.use_glove_for_unk:
             feed_dict[self.new_emb_mat] = batch.shared['new_emb_mat']
@@ -489,7 +490,9 @@ class Model(object):
                 each = _get_word(ansik)
                 assert isinstance(each, int), each
                 answer_eos[i,k] = each
-
+        
+        for i,length in enumerate(batch.data['ans_len']):
+            target_lengths[i]=length
 
         if supervised:
             assert np.sum(~(x_mask | ~wy)) == 0

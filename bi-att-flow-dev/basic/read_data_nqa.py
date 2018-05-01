@@ -271,6 +271,19 @@ def get_squad_data_filter(config):
         x, cx = shared['x'], shared['cx']
         if len(q) > config.ques_size_th:
             return False
+        sents = shared['x'][rx[0]][0]
+        if config.para_size_th <sum(map(len, sents)):
+            return False
+
+        if config.num_sents_th < len(sents):
+            return False
+
+        if config.sent_size_th <max(map(len, sents)):
+            return False
+
+        if config.word_size_th <max(len(word) for sent in sents for word in sent):
+            return False
+
 
         #TODO: see if these conditions are actually imp for our case
         y=0
@@ -327,6 +340,7 @@ def update_config(config, data_sets):
     for data_set in data_sets:
         data = data_set.data
         shared = data_set.shared
+        count =0
         for idx in data_set.valid_idxs:
             rx = data['*x'][idx]
             q = data['q'][idx]
@@ -359,3 +373,4 @@ def update_config(config, data_sets):
     if config.squash:
         config.max_sent_size = config.max_para_size
         config.max_num_sents = 1
+
