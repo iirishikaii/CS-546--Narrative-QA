@@ -4,7 +4,7 @@
 ### set the number of PEs per node
 #PBS -l nodes=1:ppn=16:xk
 ### set the wallclock time
-#PBS -l walltime=08:00:00
+#PBS -l walltime=30:00:00
 ### set the job name
 #PBS -N inception_imagenet_distributed_train
 ### set the job stdout and stderr
