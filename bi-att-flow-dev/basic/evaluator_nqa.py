@@ -536,7 +536,7 @@ class BleuEvaluator(Evaluator):
         #("bleu score",bleu_score)
         e = BleuEvaluation(data_set.data_type, int(global_step), idxs, decoder_logits_train.tolist(), float(loss),list(bleu_score),
                               data_set.shared['idx2word'], tensor_dict=self.tensor_dict)
-        print("evaluation scores: ", e)
+        #print("evaluation scores: ", e)
         return e
 
 def id2word_translate(corpus,trans_dict):

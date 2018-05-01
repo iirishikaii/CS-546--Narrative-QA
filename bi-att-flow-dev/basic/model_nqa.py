@@ -104,7 +104,7 @@ class Model(object):
         M = tf.shape(self.x)[1]
         dc, dw, dco = config.char_emb_size, config.word_emb_size, config.char_out_size
 
-        print ("dhruv is here",N, self.x.get_shape(), JX, self.q.get_shape(), VW, VC, d, W,dc, dw, dco)
+        #print ("dhruv is here",N, self.x.get_shape(), JX, self.q.get_shape(), VW, VC, d, W,dc, dw, dco)
         with tf.variable_scope("emb"):
             if config.use_char_emb:
                 with tf.variable_scope("emb_var"), tf.device("/cpu:0"):
@@ -233,7 +233,7 @@ class Model(object):
             # Embedding decoder/matrix
 
             tgt_vocab_size = config.len_new_emb_mat # hparam # FIXME: Obtain embeddings differently?
-            print("length is",config.len_new_emb_mat)
+           #print("length is",config.len_new_emb_mat)
             tgt_embedding_size = dw # hparam
 
             # Look up embedding
@@ -498,14 +498,14 @@ class Model(object):
         feed_dict[self.decoder_inputs] = np.delete(feed_dict[self.decoder_inputs], np.s_[max_decoder_time::], 1)
         feed_dict[self.decoder_targets] = np.delete(feed_dict[self.decoder_targets], np.s_[max_decoder_time::], 1)
 
-        print("decoder_inputs here:")
-        print(feed_dict[self.decoder_inputs])
-        print(feed_dict[self.decoder_inputs].shape)
-        print("decoder_targets here:")
-        print(feed_dict[self.decoder_targets])
-        print(feed_dict[self.decoder_targets].shape)
-        print("target_sequence_length here:")
-        print(feed_dict[self.target_sequence_length])
+        #print("decoder_inputs here:")
+        #print(feed_dict[self.decoder_inputs])
+        #print(feed_dict[self.decoder_inputs].shape)
+        #print("decoder_targets here:")
+        #print(feed_dict[self.decoder_targets])
+        #print(feed_dict[self.decoder_targets].shape)
+        #print("target_sequence_length here:")
+        #print(feed_dict[self.target_sequence_length])
 
         def get_target_weights(decoder_targets, padding_token):
             def f(t, padding_token = padding_token):
@@ -518,9 +518,9 @@ class Model(object):
 
         feed_dict[self.target_weights] = get_target_weights(feed_dict[self.decoder_targets], 0)
 
-        print("target_weights here:")
-        print(feed_dict[self.target_weights])
-        print(feed_dict[self.target_weights].shape)
+        #print("target_weights here:")
+        #print(feed_dict[self.target_weights])
+        #print(feed_dict[self.target_weights].shape)
 
         return feed_dict
 
