@@ -532,6 +532,32 @@ class BleuEvaluator(Evaluator):
         reference_corpus=id2word_translate(reference_corpus,data_set.shared['idx2word'])
         decoder_logits_train=id2word_translate(decoder_logits_train,data_set.shared['idx2word'])
         #TODO:Score will be bloated because of paddings at the end
+        
+        ######fixes to remove the NULLs
+        ref_len = len(reference_corpus)
+        tran_len = len(decoder_logits_train)
+        ref_nulls = 0
+        tran_nulls = 0
+        
+        for i in range(ref_len-1,-1,-1):
+            if(reference_corpus[i]==NULL):
+                ref_nulls +=1
+            else:
+                break
+                
+        for i in range(trans_len-1,-1,-1):
+            if(decoder_logits_train[i]==NULL):
+                tran_nulls +=1
+            else:
+                break
+      
+        reference_corpus = reference_corpus[0:ref_len-ref_nulls]
+        decoder_logits_train = decoder_logits_train[0:tran_len - tran_nulls]
+       
+        #####
+    
+    
+        
         bleu_score = compute_bleu([reference_corpus.tolist()], decoder_logits_train)
         #("bleu score",bleu_score)
         e = BleuEvaluation(data_set.data_type, int(global_step), idxs, decoder_logits_train.tolist(), float(loss),list(bleu_score),
