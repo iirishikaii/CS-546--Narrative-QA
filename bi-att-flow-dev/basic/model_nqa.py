@@ -104,7 +104,7 @@ class Model(object):
         M = tf.shape(self.x)[1]
         dc, dw, dco = config.char_emb_size, config.word_emb_size, config.char_out_size
 
-        print ("dhruv is here",N, self.x.get_shape(), JX, self.q.get_shape(), VW, VC, d, W,dc, dw, dco)
+        #print ("dhruv is here",N, self.x.get_shape(), JX, self.q.get_shape(), VW, VC, d, W,dc, dw, dco)
         with tf.variable_scope("emb"):
             if config.use_char_emb:
                 with tf.variable_scope("emb_var"), tf.device("/cpu:0"):
@@ -233,7 +233,7 @@ class Model(object):
             # Embedding decoder/matrix
 
             tgt_vocab_size = config.len_new_emb_mat # hparam # FIXME: Obtain embeddings differently?
-            print("length is",config.len_new_emb_mat)
+            #print("length is",config.len_new_emb_mat)
             tgt_embedding_size = dw # hparam
 
             # Look up embedding
@@ -263,7 +263,7 @@ class Model(object):
             else:
                 training_helper = tf.contrib.seq2seq.GreedyEmbeddingHelper(word_emb_mat, tf.fill([N], self.tgt_sos_id),
                                                                                                  self.tgt_eos_id)
-                final_outputs= decode(helper=training_helper, scope="HAHA", reuse=None,maximum_iterations=100)
+                final_outputs= decode(helper=training_helper, scope="HAHA", reuse=None,maximum_iterations=30)
                 #self.translations = final_outputs_test.sample_id
             self.decoder_logits_train = final_outputs.rnn_output
             #decoder_logits_train = final_outputs.rnn_output
@@ -365,6 +365,7 @@ class Model(object):
         answer = np.zeros([N, JX], dtype='int32')
         answer_eos = np.zeros([N, JX], dtype='int32')
         target_weights = np.zeros([N, JX], dtype='float32')
+        target_lengths = np.zeros([N], dtype='int32')
 
         feed_dict[self.x] = x
         feed_dict[self.x_mask] = x_mask
@@ -376,7 +377,7 @@ class Model(object):
         feed_dict[self.decoder_inputs]=answer
         feed_dict[self.decoder_targets]=answer_eos
         feed_dict[self.target_weights]=target_weights
-        feed_dict[self.target_sequence_length]=batch.data['ans_len']
+        feed_dict[self.target_sequence_length]=target_lengths
 
         if config.use_glove_for_unk:
             feed_dict[self.new_emb_mat] = batch.shared['new_emb_mat']
@@ -489,7 +490,9 @@ class Model(object):
                 each = _get_word(ansik)
                 assert isinstance(each, int), each
                 answer_eos[i,k] = each
-
+        
+        for i,length in enumerate(batch.data['ans_len']):
+            target_lengths[i]=length
 
         if supervised:
             assert np.sum(~(x_mask | ~wy)) == 0
@@ -498,14 +501,14 @@ class Model(object):
         feed_dict[self.decoder_inputs] = np.delete(feed_dict[self.decoder_inputs], np.s_[max_decoder_time::], 1)
         feed_dict[self.decoder_targets] = np.delete(feed_dict[self.decoder_targets], np.s_[max_decoder_time::], 1)
 
-        print("decoder_inputs here:")
-        print(feed_dict[self.decoder_inputs])
-        print(feed_dict[self.decoder_inputs].shape)
-        print("decoder_targets here:")
-        print(feed_dict[self.decoder_targets])
-        print(feed_dict[self.decoder_targets].shape)
-        print("target_sequence_length here:")
-        print(feed_dict[self.target_sequence_length])
+        #print("decoder_inputs here:")
+        #print(feed_dict[self.decoder_inputs])
+        #print(feed_dict[self.decoder_inputs].shape)
+        #print("decoder_targets here:")
+        #print(feed_dict[self.decoder_targets])
+        #print(feed_dict[self.decoder_targets].shape)
+        #print("target_sequence_length here:")
+        #print(feed_dict[self.target_sequence_length])
 
         def get_target_weights(decoder_targets, padding_token):
             def f(t, padding_token = padding_token):
@@ -518,9 +521,9 @@ class Model(object):
 
         feed_dict[self.target_weights] = get_target_weights(feed_dict[self.decoder_targets], 0)
 
-        print("target_weights here:")
-        print(feed_dict[self.target_weights])
-        print(feed_dict[self.target_weights].shape)
+        #print("target_weights here:")
+        #print(feed_dict[self.target_weights])
+        #print(feed_dict[self.target_weights].shape)
 
         return feed_dict
 
